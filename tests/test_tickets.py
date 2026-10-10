@@ -3,9 +3,9 @@ TestClient -- this dispatches through the actual ASGI routing/validation
 layer (status codes, Pydantic validation included), not just internal
 functions, which is what "send tickets to the case API" means here. Using
 TestClient instead of a live curl/uvicorn process keeps this deterministic
-and quota-free: tests/conftest.py forces GEMINI_API_KEY="" for the whole
+and quota-free: tests/conftest.py forces GROQ_API_KEY="" for the whole
 tests/ package, so every decision goes through the fallback_rules backend,
-not live Gemini.
+not a live LLM call.
 
 T3, T4 and T6 use real coordinates pulled from the seeded registries
 (RNG_SEED=42 in seed_db.py, so these are reproducible on any

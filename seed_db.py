@@ -1,4 +1,4 @@
-"""Seeds the SQLite registries with synthetic data for ward W-12.
+"""Seeds the Supabase (Postgres) registries with synthetic data for ward W-12.
 
 Per prompt.md 2.5: "Seed one sample ward (W-12), with about 60 to 100 assets
 per department. Use invented coordinates and IDs, and mark them synthetic
@@ -17,6 +17,7 @@ reproduce deterministically:
            has no segment within 50m.
 
 Run directly to force a full reset: `python seed_db.py --reset`
+(this drops and recreates config.DB_SCHEMA, not a local file).
 """
 from __future__ import annotations
 

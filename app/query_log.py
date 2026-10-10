@@ -9,7 +9,6 @@ or another case.
 from __future__ import annotations
 
 import json
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 
@@ -62,7 +61,7 @@ def all_for_case_department(case_id: str, department: str) -> list[dict]:
     return [_row_to_dict(r) for r in rows]
 
 
-def _row_to_dict(row: sqlite3.Row) -> dict:
+def _row_to_dict(row: dict) -> dict:
     return {
         "ref": row["ref"],
         "case_id": row["case_id"],

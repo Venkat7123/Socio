@@ -13,10 +13,21 @@ DATA_DIR = Path(__file__).resolve().parent / "data"
 MATRIX_PATH = DATA_DIR / "jurisdiction_matrix.json"
 ROUTING_SEED_PATH = DATA_DIR / "routing_seed.json"
 
-DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "loci.db"))
+# Supabase Postgres connection string, e.g.
+# postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+# (Supabase dashboard -> Project Settings -> Database -> Connection string -> URI).
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+# Postgres schema the app's tables live in. Deliberately NOT "public" -- this
+# keeps the app's own tables out of Supabase's default schema (where its
+# dashboard/PostgREST conventions and any RLS policies normally live) and
+# gives tests (tests/conftest.py overrides this to "loci_test") a disposable,
+# fully-isolated namespace inside the SAME Supabase project rather than a
+# second project or a throwaway local file.
+DB_SCHEMA = os.getenv("DB_SCHEMA", "loci").strip() or "loci"
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # Not specified in the provided spec fragment (sections 1-2.3 were not
 # available) -- chosen as a reasonable demo default. Override via .env.

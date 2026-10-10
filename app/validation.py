@@ -142,7 +142,7 @@ def validate_and_assemble(department: str, case: dict, facts: dict, decision: di
     dtype = decision["type"]
     category = case["category"]
 
-    # Guard added after observing live Gemini behavior: a department that has
+    # Guard added after observing live-LLM behavior: a department that has
     # its own presence evidence for this category (an asset of its own was
     # actually found near the point) has standing -- the only sensible
     # outcomes are "accept" or "split" (own part). A live model sometimes
@@ -160,7 +160,7 @@ def validate_and_assemble(department: str, case: dict, facts: dict, decision: di
             f"ignoring it; choose 'accept' (or 'split' if another department also owns part of this)."
         )
 
-    # Guard added after observing live Gemini behavior: when the agent's own
+    # Guard added after observing live-LLM behavior: when the agent's own
     # evidence is absence-only and the matrix still has an untried candidate
     # for this category, the correct move is `reject` to that candidate --
     # the engine escalates automatically once every candidate has rejected
@@ -184,7 +184,7 @@ def validate_and_assemble(department: str, case: dict, facts: dict, decision: di
         evidence_objs, logged = _evidence_from_refs(decision.get("cite_refs", []), case["id"], department)
         if not any(e["kind"] == "presence" for e in evidence_objs):
             raise ValidationError("accept requires at least one cited ref with kind 'presence'")
-        # Guard added after observing live Gemini behavior: a department can
+        # Guard added after observing live-LLM behavior: a department can
         # have presence evidence for part of a complaint AND its own
         # handover_record showing another part was transferred elsewhere
         # (prompt.md 2.7 S2 exactly). A plain "accept" in that situation

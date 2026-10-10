@@ -2,9 +2,10 @@
 messages and the facts sheet, and must return exactly this structure."
 
 Two backends:
-  - gemini: real call to Gemini via google-genai, JSON-mode output.
+  - groq: real call to a Groq-hosted model via the groq SDK (OpenAI-compatible
+    chat completions, JSON-mode output).
   - fallback_rules: deterministic stub over the same facts sheet, used when
-    GEMINI_API_KEY is unset or the live call fails/times out, so a hackathon
+    GROQ_API_KEY is unset or the live call fails/times out, so a hackathon
     demo never goes dark mid-pitch. Every AgentMessage records which backend
     actually decided it (message.model_backend) -- nothing is hidden.
 
@@ -17,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 
-from app.config import GEMINI_API_KEY, GEMINI_MODEL
+from app.config import GROQ_API_KEY, GROQ_MODEL
 from app.schemas import ModelDecision
 
 logger = logging.getLogger("loci.llm")
@@ -87,14 +88,14 @@ Rules:
 
 
 def _client():
-    if not GEMINI_API_KEY:
+    if not GROQ_API_KEY:
         return None
     try:
-        from google import genai
+        from groq import Groq
     except ImportError:
-        logger.warning("google-genai not installed; using fallback_rules backend")
+        logger.warning("groq not installed; using fallback_rules backend")
         return None
-    return genai.Client(api_key=GEMINI_API_KEY)
+    return Groq(api_key=GROQ_API_KEY)
 
 
 def _build_user_prompt(
@@ -130,23 +131,21 @@ def decide(
         return mock_decide(department, case, facts, transcript), "fallback_rules"
 
     try:
-        from google.genai import types
-
         prompt = _build_user_prompt(department, case, facts, transcript, retry_feedback)
-        resp = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
+        resp = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.1,
         )
-        raw = json.loads(resp.text)
+        raw = json.loads(resp.choices[0].message.content)
         decision = ModelDecision(**raw).model_dump()
-        return decision, "gemini"
+        return decision, "groq"
     except Exception as exc:  # noqa: BLE001 -- any failure here must degrade, never crash the case
-        logger.warning("Gemini call failed, falling back to deterministic rules: %s", exc)
+        logger.warning("Groq call failed, falling back to deterministic rules: %s", exc)
         return mock_decide(department, case, facts, transcript), "fallback_rules"
 
 

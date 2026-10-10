@@ -1,7 +1,7 @@
 """End-to-end tests for the four worked scenarios in prompt.md 2.7, plus the
 "Test assertions to add for Track C" from the same section. Runs against the
 deterministic fallback_rules LLM backend (see conftest.py) so results are
-reproducible in CI without a Gemini key.
+reproducible in CI without a Groq key.
 """
 from fastapi.testclient import TestClient
 

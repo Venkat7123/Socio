@@ -1,4 +1,13 @@
-"""SQLite access layer. Plain sqlite3 (stdlib) -- no ORM needed for a hackathon demo.
+"""Supabase (hosted Postgres) access layer via psycopg2.
+
+Every other module (app/registries.py, app/engine.py, app/agents.py,
+app/query_log.py, app/routers/admin.py, seed_db.py) was written against a
+sqlite3-shaped API: `with session() as conn: conn.execute(sql, params)`,
+`?`-style placeholders, and dict-like row access (`row["x"]`, `dict(row)`).
+`_Connection` below reproduces exactly that surface on top of a real
+psycopg2/Postgres connection -- translating `?` -> `%s` and returning
+RealDictCursor rows (already dict-like) -- so none of those call sites needed
+to change when the storage engine did.
 
 Schema notes:
   - Each department's registry is its own set of tables (own asset types,
@@ -8,14 +17,19 @@ Schema notes:
   - query_log is shared infrastructure (not asset data) -- it is how refs are
     minted and later validated as belonging to (department, case_id).
   - cases / messages / sub_tasks hold the case lifecycle and full transcript.
+  - All tables live in config.DB_SCHEMA, a dedicated Postgres schema (not
+    "public") inside the Supabase project, so this app's data never collides
+    with Supabase's own dashboard/PostgREST conventions.
 """
 from __future__ import annotations
 
-import sqlite3
 from contextlib import contextmanager
-from pathlib import Path
 
-from app.config import DB_PATH
+import psycopg2
+import psycopg2.extras
+import psycopg2.pool
+
+from app.config import DATABASE_URL, DB_SCHEMA
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS corporation_roads (
@@ -107,7 +121,7 @@ CREATE TABLE IF NOT EXISTS cases (
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     case_id TEXT NOT NULL,
     thread_id TEXT NOT NULL,
     seq INTEGER NOT NULL,
@@ -136,7 +150,7 @@ CREATE TABLE IF NOT EXISTS sub_tasks (
 );
 
 CREATE TABLE IF NOT EXISTS adjudications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     case_id TEXT NOT NULL,
     thread_id TEXT NOT NULL,
     proposed_owner TEXT,
@@ -147,17 +161,54 @@ CREATE TABLE IF NOT EXISTS adjudications (
 );
 """
 
+_pool: psycopg2.pool.ThreadedConnectionPool | None = None
 
-def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+
+def _get_pool() -> psycopg2.pool.ThreadedConnectionPool:
+    global _pool
+    if _pool is None:
+        if not DATABASE_URL:
+            raise RuntimeError(
+                "DATABASE_URL is not set. Copy .env.example to .env and fill in your Supabase "
+                "connection string (Project Settings -> Database -> Connection string -> URI)."
+            )
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            1, 10, dsn=DATABASE_URL, options=f"-c search_path={DB_SCHEMA},public"
+        )
+    return _pool
+
+
+class _Connection:
+    """Gives a pooled psycopg2 connection the sqlite3.Connection.execute()
+    shorthand and `?`-style placeholders the rest of the app is written
+    against. None of this codebase's SQL literals contain a bare '?' or '%'
+    outside of placeholder position, so the translation below is safe."""
+
+    def __init__(self, raw):
+        self._raw = raw
+
+    def execute(self, sql: str, params=()):
+        cur = self._raw.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql.replace("?", "%s"), params)
+        return cur
+
+    def executescript(self, sql: str) -> None:
+        cur = self._raw.cursor()
+        cur.execute(sql)
+        cur.close()
+
+    def commit(self) -> None:
+        self._raw.commit()
+
+    def rollback(self) -> None:
+        self._raw.rollback()
 
 
 @contextmanager
 def session():
-    conn = get_conn()
+    pool = _get_pool()
+    raw = pool.getconn()
+    conn = _Connection(raw)
     try:
         yield conn
         conn.commit()
@@ -165,13 +216,14 @@ def session():
         conn.rollback()
         raise
     finally:
-        conn.close()
+        pool.putconn(raw)
 
 
 def init_db(reset: bool = False) -> None:
-    if reset and Path(DB_PATH).exists():
-        Path(DB_PATH).unlink()
     with session() as conn:
+        if reset:
+            conn.execute(f'DROP SCHEMA IF EXISTS "{DB_SCHEMA}" CASCADE')
+        conn.execute(f'CREATE SCHEMA IF NOT EXISTS "{DB_SCHEMA}"')
         conn.executescript(SCHEMA)
 
 
