@@ -96,7 +96,7 @@ def test_slow_model_returns_retry_quickly(conn, monkeypatch):
     monkeypatch.setattr(llm_mod, "TIMEOUT_S", 0.3)
     cid = assigned_case(conn)
     agent, llm = verifier()
-    llm.json = lambda *a, **k: llm_mod._guarded(lambda: time.sleep(5))
+    llm.complete_json = lambda *a, **k: llm_mod._guarded(lambda: time.sleep(5))
     t = time.time()
     r = engine.verify_case(conn, cid, vreq(), agent, now=T0)
     assert time.time() - t < 2 and r.retry and r.status == CaseStatus.assigned

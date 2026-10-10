@@ -1,5 +1,5 @@
 """Stand-ins for the Groq wrapper used by the agent tests."""
-from app.llm import ModelUnavailable
+from app.llm import JSONResult, ModelUnavailable
 
 
 class FakeLLM:
@@ -12,11 +12,11 @@ class FakeLLM:
         self.json_calls = []
         self.transcribe_calls = []
 
-    def json(self, system, parts, schema, temperature=0.1):
+    def complete_json(self, system, parts, schema, temperature=0.1):
         self.json_calls.append({"system": system, "parts": parts, "schema": schema})
         if self.fail:
             raise ModelUnavailable("down")
-        return self.payload
+        return JSONResult(self.payload, "fake")
 
     def transcribe(self, data, mime):
         self.transcribe_calls.append((data, mime))

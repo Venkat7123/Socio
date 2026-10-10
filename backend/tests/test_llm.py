@@ -47,7 +47,9 @@ OK = json.dumps({"same_spot": True, "resolved": False, "reason": "Hole remains."
 
 def test_json_request_shape_and_downscaled_images():
     fake = FakeGroq(reply=OK)
-    out = GroqLLM(client=fake).json("SYS", ["BEFORE:", Image(jpeg(), "image/png"), "question"], VisionAssessment)
+    res = GroqLLM(client=fake).complete_json("SYS", ["BEFORE:", Image(jpeg(), "image/png"), "question"], VisionAssessment)
+    out = res.data
+    assert res.backend == "groq:" + llm_mod.VISION_MODEL
     assert out["same_spot"] is True and out["resolved"] is False and out["reason"] == "Hole remains."
     assert out["mismatches"] == []  # defaults fill the fields the reply left out
     kw = fake.calls[0]
@@ -66,20 +68,20 @@ def test_json_request_shape_and_downscaled_images():
 
 def test_invalid_image_is_media_error():
     with pytest.raises(MediaFetchError):
-        GroqLLM(client=FakeGroq(reply=OK)).json("S", [Image(b"not an image", "image/jpeg")], VisionAssessment)
+        GroqLLM(client=FakeGroq(reply=OK)).complete_json("S", [Image(b"not an image", "image/jpeg")], VisionAssessment)
 
 
 @pytest.mark.parametrize("reply", [None, "", "not json", json.dumps({"same_spot": "maybe"})])
 def test_bad_model_output_is_unavailable(reply):
     with pytest.raises(ModelUnavailable):
-        GroqLLM(client=FakeGroq(reply=reply)).json("S", ["q"], VisionAssessment)
+        GroqLLM(client=FakeGroq(reply=reply)).complete_json("S", ["q"], VisionAssessment)
 
 
 def test_rate_limit_maps_to_unavailable():
     resp = httpx.Response(429, request=httpx.Request("POST", "https://api.groq.com/x"))
     err = groq.RateLimitError("rate limited", response=resp, body=None)
     with pytest.raises(ModelUnavailable) as e:
-        GroqLLM(client=FakeGroq(error=err)).json("S", ["q"], VisionAssessment)
+        GroqLLM(client=FakeGroq(error=err)).complete_json("S", ["q"], VisionAssessment)
     assert "429" in str(e.value)
 
 
@@ -87,11 +89,11 @@ def test_rate_limit_carries_retry_after_from_headers():
     resp = httpx.Response(429, headers={"x-ratelimit-reset-tokens": "1m2.5s"}, request=httpx.Request("POST", "https://api.groq.com/x"))
     err = groq.RateLimitError("rate limited", response=resp, body=None)
     with pytest.raises(ModelUnavailable) as e:
-        GroqLLM(client=FakeGroq(error=err)).json("S", ["q"], VisionAssessment)
+        GroqLLM(client=FakeGroq(error=err)).complete_json("S", ["q"], VisionAssessment)
     assert e.value.retry_after == 62.5
     resp = httpx.Response(429, headers={"retry-after": "7"}, request=httpx.Request("POST", "https://api.groq.com/x"))
     with pytest.raises(ModelUnavailable) as e:
-        GroqLLM(client=FakeGroq(error=groq.RateLimitError("r", response=resp, body=None))).json("S", ["q"], VisionAssessment)
+        GroqLLM(client=FakeGroq(error=groq.RateLimitError("r", response=resp, body=None))).complete_json("S", ["q"], VisionAssessment)
     assert e.value.retry_after == 7
 
 
@@ -105,7 +107,7 @@ def test_slow_call_times_out(monkeypatch):
     monkeypatch.setattr(llm_mod, "TIMEOUT_S", 0.3)
     t = time.time()
     with pytest.raises(ModelUnavailable) as e:
-        GroqLLM(client=FakeGroq(reply=OK, delay=5)).json("S", ["q"], VisionAssessment)
+        GroqLLM(client=FakeGroq(reply=OK, delay=5)).complete_json("S", ["q"], VisionAssessment)
     assert time.time() - t < 2 and "exceeded" in str(e.value)
 
 

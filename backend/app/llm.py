@@ -12,7 +12,7 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Protocol
 
 import groq
 import httpx
@@ -66,6 +66,21 @@ def _retry_after(e: "groq.APIStatusError") -> float | None:
 class Image(NamedTuple):
     data: bytes
     mime: str
+
+
+class JSONResult(NamedTuple):
+    data: dict  # validated against the requested schema
+    backend: str  # what produced it, e.g. "groq:qwen/qwen3.8-27b"; copied onto every agent message as model_backend
+
+
+class LLMProvider(Protocol):
+    """What the agents depend on. Groq is the only implementation; another provider needs only these two methods.
+    complete_json must return data valid for `schema`, or raise ModelUnavailable (timeout over TIMEOUT_S, rate limit,
+    API error, unparseable output). It never returns a guess."""
+
+    def complete_json(self, system: str, parts: "list[Part]", schema: type[BaseModel], temperature: float = 0.1) -> JSONResult: ...
+
+    def transcribe(self, data: bytes, mime: str) -> str: ...
 
 
 Part = str | Image
@@ -130,7 +145,7 @@ class GroqLLM:
         self.model = model
         self.stt_model = stt_model
 
-    def json(self, system: str, parts: list[Part], schema: type[BaseModel], temperature: float = 0.1) -> dict:
+    def complete_json(self, system: str, parts: list[Part], schema: type[BaseModel], temperature: float = 0.1) -> JSONResult:
         content: list[dict] = []
         for p in parts:
             if isinstance(p, Image):
@@ -151,7 +166,7 @@ class GroqLLM:
         if not text:
             raise ModelUnavailable("empty model response")
         try:
-            return schema.model_validate(json.loads(text)).model_dump()
+            return JSONResult(schema.model_validate(json.loads(text)).model_dump(), f"groq:{self.model}")
         except ValueError as e:
             raise ModelUnavailable(f"unparseable model response: {e}") from e
 

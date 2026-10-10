@@ -102,4 +102,4 @@ class IntakeAgent:
         if req.photo_urls:
             facts.append(f"{len(req.photo_urls)} photo(s) attached above.")
         parts.append("\n\n".join(facts))
-        return self.llm.json(SYSTEM, parts, Assessment, temperature=0.2)
+        return self.llm.complete_json(SYSTEM, parts, Assessment, temperature=0.2).data

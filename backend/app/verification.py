@@ -84,7 +84,7 @@ class VerificationAgent:
         data, mime = self.fetch(req.after_photo_url)
         parts += ["AFTER photo:", Image(data, mime)]
         parts.append(f"Reported problem: {case.category.value} - {case.description}\nBefore photos provided: {len(befores)}")
-        v = VisionAssessment.model_validate(self.llm.json(SYSTEM, parts, VisionAssessment, temperature=0.1))
+        v = VisionAssessment.model_validate(self.llm.complete_json(SYSTEM, parts, VisionAssessment, temperature=0.1).data)
         if befores and v.mismatches:
             # The model's own observations override its verdict: any listed mismatch means a different place.
             v = v.model_copy(update={

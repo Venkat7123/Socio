@@ -117,7 +117,7 @@ def test_intake_endpoint_creates_case_and_need_info(client):
 def test_slow_model_endpoint_returns_retry_need_info(client, monkeypatch):
     monkeypatch.setattr(llm_mod, "TIMEOUT_S", 0.3)
     slow = FakeLLM(BASE)
-    slow.json = lambda *a, **k: llm_mod._guarded(lambda: time.sleep(5))
+    slow.complete_json = lambda *a, **k: llm_mod._guarded(lambda: time.sleep(5))
     app.dependency_overrides[get_intake_agent] = lambda: IntakeAgent(llm=slow, fetch=fake_fetch)
     try:
         t = time.time()
