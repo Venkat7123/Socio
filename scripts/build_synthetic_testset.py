@@ -65,7 +65,7 @@ VOICE = [  # (id, voice, rate, script, expected_result, expected_category)
     ("v02", "Microsoft Zira Desktop", 0, "The street light outside my house has not been working for three days and the lane is completely dark.", "case_created", "streetlight"),
     ("v03", "Microsoft David Desktop", 1, "Garbage has not been collected in our lane for over a week. It is piling up and smells terrible.", "case_created", "garbage"),
     ("v04", "Microsoft Zira Desktop", -1, "Water is leaking from a broken pipe near the school gate and the road is flooded.", "case_created", "water_leak"),
-    ("v05", "Microsoft David Desktop", 0, "The drain near the bus stop is blocked and dirty water is overflowing onto the road.", "case_created", "drainage"),
+    ("v05", "Microsoft David Desktop", 0, "The drain near the bus stop is blocked and dirty water is overflowing onto the road.", "case_created", "drain_block"),
     ("v06", "Microsoft Zira Desktop", 2, "Hello. Please send someone to fix the road in front of the temple. There is a deep hole and cars are swerving.", "case_created", "pothole"),
     ("v07", "Microsoft David Desktop", 0, "Hello, there is a problem near my house. Please come and see.", "need_info", None),
     ("v08", "Microsoft Zira Desktop", 0, "Um, it is not good here. Somebody should do something about it.", "need_info", None),

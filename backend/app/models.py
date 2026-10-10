@@ -13,11 +13,13 @@ class Department(str, Enum):
 
 
 class Category(str, Enum):
+    """Canonical categories. These are Track C's names; contracts/jurisdiction_matrix.json is keyed by them."""
     pothole = "pothole"
-    water_leak = "water_leak"
-    streetlight = "streetlight"
+    waterlogging = "waterlogging"  # water standing on a road: rain, drain overflow or a burst main
+    drain_block = "drain_block"  # a blocked or choked drain
     garbage = "garbage"
-    drainage = "drainage"
+    streetlight = "streetlight"
+    water_leak = "water_leak"  # a leaking pipe or valve
     other = "other"
 
 

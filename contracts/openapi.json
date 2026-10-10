@@ -821,13 +821,15 @@
         "type": "string",
         "enum": [
           "pothole",
-          "water_leak",
-          "streetlight",
+          "waterlogging",
+          "drain_block",
           "garbage",
-          "drainage",
+          "streetlight",
+          "water_leak",
           "other"
         ],
-        "title": "Category"
+        "title": "Category",
+        "description": "Canonical categories. These are Track C's names; contracts/jurisdiction_matrix.json is keyed by them."
       },
       "Channel": {
         "type": "string",

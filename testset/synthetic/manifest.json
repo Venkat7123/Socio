@@ -189,7 +189,7 @@
       "audio": "voice/v05.wav",
       "script": "The drain near the bus stop is blocked and dirty water is overflowing onto the road.",
       "expected_result": "case_created",
-      "expected_category": "drainage",
+      "expected_category": "drain_block",
       "voice": "Microsoft David Desktop",
       "language": "en"
     },

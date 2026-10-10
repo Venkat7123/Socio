@@ -18,7 +18,10 @@ broken streetlight, garbage, blocked drain, or something else) by text, a voice 
 Messages may be in any Indian language or a mix; understand them, but write the description in English.
 
 Decide whether there is enough to open a case.
-- category: the best fit, or "other" when nothing fits.
+- category: the best fit, or "other" when nothing fits. pothole = a hole or broken surface in a road. waterlogging = water \
+standing on a road or junction (after rain, overflow, or flooding from a burst main). drain_block = a blocked, choked or \
+broken drain. garbage = uncollected or dumped waste. streetlight = a street lamp or its pole not working. water_leak = a \
+leaking pipe, tap or valve.
 - severity: critical = immediate danger to life or major service failure (open manhole, live wire down, burst main flooding \
 a road); high = serious and getting worse; medium = a real nuisance; low = minor or cosmetic.
 - description: one or two factual sentences for the departments. Do not invent details the citizen did not give.
