@@ -13,7 +13,7 @@ from app.models import AgentMessage, CaseCreate, CaseStatus, ConfirmRequest, Ver
 from app.verification import VerificationAgent, distance_m
 
 T0 = datetime(2026, 10, 10, 9, 0, tzinfo=timezone.utc)
-LAT, LNG = 12.9716, 77.5946
+LAT, LNG = 13.0835, 80.2720  # Track C ward W-12 scenario point P2 (Chennai)
 NEAR = (LAT + 0.0002, LNG)  # about 22 m north
 FAR = (LAT + 0.002, LNG)  # about 222 m north
 

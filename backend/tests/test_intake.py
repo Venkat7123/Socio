@@ -9,7 +9,7 @@ from app.llm import Image, MediaFetchError, ModelUnavailable
 from app.main import app, get_intake_agent
 from app.models import CaseCreate, IntakeRequest, NeedInfo
 
-PIN = {"lat": 12.97, "lng": 77.59, "ward": "Ward 12"}
+PIN = {"lat": 13.0835, "lng": 80.272, "ward": "W-12"}
 BASE = dict(category="water_leak", severity="high", description="Water leaking from a pipe on the road.",
             address_hint="near the bus stop", photo_quality="ok", missing=[], question="")
 
@@ -29,7 +29,7 @@ def req(**kw):
 def test_complete_report_becomes_case():
     out = agent().process(req(text="Pipe leaking near bus stop", photo_urls=["https://h/a.jpg"], location=PIN))
     assert isinstance(out, CaseCreate)
-    assert out.category.value == "water_leak" and out.location.lat == 12.97
+    assert out.category.value == "water_leak" and out.location.lat == 13.0835
     assert out.location.address == "near the bus stop"
     assert [m.kind for m in out.media] == ["photo"]
 

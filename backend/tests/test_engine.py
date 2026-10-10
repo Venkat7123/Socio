@@ -12,7 +12,7 @@ T0 = datetime(2026, 10, 10, 9, 0, tzinfo=timezone.utc)
 def new_case(conn, severity="medium", now=T0):
     return engine.create_case(conn, CaseCreate(
         category="water_leak", severity=severity, description="Pipe leaking",
-        location={"lat": 12.97, "lng": 77.59, "ward": "Ward 12"}, citizen_ref="cit_1",
+        location={"lat": 13.0835, "lng": 80.272, "ward": "W-12"}, citizen_ref="cit_1",
         media=[{"kind": "photo", "url": "https://x/a.jpg"}],
     ), now=now)
 
@@ -97,9 +97,9 @@ def test_transition_table():
 
 def test_api_end_to_end(client):
     body = {"category": "pothole", "severity": "low", "description": "Deep pothole",
-            "location": {"lat": 12.9, "lng": 77.5, "ward": "Ward 7"}, "citizen_ref": "cit_x"}
+            "location": {"lat": 13.083, "lng": 80.271, "ward": "W-7"}, "citizen_ref": "cit_x"}
     cid = client.post("/cases", json=body).json()["id"]
-    assert client.get("/cases", params={"ward": "Ward 7"}).json()[0]["id"] == cid
+    assert client.get("/cases", params={"ward": "W-7"}).json()[0]["id"] == cid
     bad = {"from_agent": "corporation", "type": "reject", "target_department": "water_board", "reason": "no", "evidence": []}
     assert client.post(f"/cases/{cid}/messages", json=bad).status_code == 422
     ok = {**bad, "reason": "not ours", "evidence": [{"kind": "registry", "ref": "r1"}]}

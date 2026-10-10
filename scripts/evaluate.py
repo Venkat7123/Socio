@@ -22,7 +22,7 @@ from app.intake import IntakeAgent, ModelUnavailable  # noqa: E402
 from app.models import Case, CaseCreate, IntakeRequest, NeedInfo, VerifyRequest  # noqa: E402
 from app.verification import VerificationAgent  # noqa: E402
 
-LAT, LNG = 12.9716, 77.5946
+LAT, LNG = 13.0835, 80.2720  # Track C ward W-12 scenario point P2 (Chennai)
 MIMES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",
          ".wav": "audio/wav", ".ogg": "audio/ogg", ".mp3": "audio/mp3", ".m4a": "audio/mp4"}
 

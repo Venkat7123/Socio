@@ -135,8 +135,8 @@ def confirm_case(case_id: str, body: ConfirmRequest, conn=Depends(get_conn)):
 @app.get("/analytics/hotspots", response_model=HotspotResponse, tags=["analytics"])
 def hotspots(ward: str | None = None):
     return HotspotResponse(hotspots=[
-        Hotspot(ward="Ward 12", category=Category.water_leak, case_count=9, dispute_count=5, reopen_count=2),
-        Hotspot(ward="Ward 7", category=Category.pothole, case_count=6, dispute_count=1, reopen_count=0),
+        Hotspot(ward="W-12", category=Category.water_leak, case_count=9, dispute_count=5, reopen_count=2),
+        Hotspot(ward="W-7", category=Category.pothole, case_count=6, dispute_count=1, reopen_count=0),
     ])
 
 

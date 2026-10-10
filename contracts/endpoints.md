@@ -57,6 +57,6 @@ Schemas in `schemas/*.schema.json` are generated from `backend/app/models.py`; d
 
 ## Open questions to lock with F and C
 
-- Ward identifiers: free text (`"Ward 12"`) for now.
+- Ward identifiers: free text; Track C uses ids like `W-12`, the only ward seeded.
 - Auth: none during the hackathon.
 - Field crew identity on `/verify`: not modelled yet.

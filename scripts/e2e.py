@@ -14,8 +14,8 @@ API = os.environ.get("API", "http://localhost:8000")
 IMG = os.environ.get("IMG_BASE", "http://localhost:8001")
 MODE = os.environ.get("E2E_MODE", "live Groq")  # set E2E_MODE="stand-in model" when the API runs with fake model calls
 ROOT = Path(__file__).resolve().parent.parent
-LAT, LNG = 12.9716, 77.5946
-PIN = {"lat": LAT, "lng": LNG, "ward": "Ward 12"}
+LAT, LNG = 13.0835, 80.2720  # Track C ward W-12 scenario point P2 (Chennai)
+PIN = {"lat": LAT, "lng": LNG, "ward": "W-12"}
 NEAR = {"lat": LAT + 0.0002, "lng": LNG}  # ~22 m
 FAR = {"lat": LAT + 0.002, "lng": LNG}  # ~222 m
 
@@ -70,7 +70,7 @@ P = "Phase 2 engine"
 c1 = new_case()
 cs = http.get(f"/cases/{c1}").json()
 check(P, "POST /cases creates case, SLA set from severity", cs["status"] == "new" and cs["sla"]["due_at"], f"high -> due {cs['sla']['due_at'][:16]}")
-check(P, "GET /cases lists it", any(c["id"] == c1 for c in http.get("/cases", params={"ward": "Ward 12"}).json()))
+check(P, "GET /cases lists it", any(c["id"] == c1 for c in http.get("/cases", params={"ward": "W-12"}).json()))
 r = msg(c1, "corporation", "reject", "water_board", refs=())
 check(P, "reject without evidence -> 422", r.status_code == 422)
 r = msg(c1, "corporation", "reject", "water_board", refs=("corp/asset/none",), reason="Water main, not road")
