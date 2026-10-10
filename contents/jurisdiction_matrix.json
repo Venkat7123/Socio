@@ -1,0 +1,34 @@
+{
+  "_note": "DEMO ASSUMPTIONS. Shared rules only, no asset data. Verify against the target city before presenting as fact.",
+  "version": "1.0.0",
+  "departments": ["corporation", "water_board", "electricity", "highways"],
+  "rules": [
+    { "id": "M-POT-1", "category": "pothole", "condition": "on_municipal_road", "candidates": ["corporation"] },
+    { "id": "M-POT-2", "category": "pothole", "condition": "road_not_in_municipal_register", "candidates": ["highways"] },
+
+    { "id": "M-WL-1", "category": "waterlogging", "condition": "storm_drain", "candidates": ["corporation"] },
+    { "id": "M-WL-2", "category": "waterlogging", "condition": "pipeline_burst", "candidates": ["water_board"] },
+    { "id": "M-WL-3", "category": "waterlogging", "condition": "road_surface_damage_road_not_in_municipal_register", "candidates": ["highways"] },
+
+    { "id": "M-DR-1", "category": "drain_block", "condition": "storm_drain", "candidates": ["corporation"] },
+
+    { "id": "M-GB-1", "category": "garbage", "condition": "any", "candidates": ["corporation"] },
+
+    { "id": "M-SL-1", "category": "streetlight", "condition": "lamp_fault", "candidates": ["corporation"] },
+    { "id": "M-SL-2", "category": "streetlight", "condition": "pole_or_supply_fault", "candidates": ["electricity"] },
+
+    { "id": "M-WT-1", "category": "water_leak", "condition": "pipeline", "candidates": ["water_board"] },
+    { "id": "M-WT-2", "category": "water_leak", "condition": "no_pipeline_likely_drain_overflow", "candidates": ["corporation"] },
+
+    { "id": "M-OT-1", "category": "other", "condition": "any", "candidates": [], "action": "escalate_to_human_triager" }
+  ],
+  "candidates_by_category": {
+    "pothole": ["corporation", "highways"],
+    "waterlogging": ["corporation", "water_board", "highways"],
+    "drain_block": ["corporation"],
+    "garbage": ["corporation"],
+    "streetlight": ["corporation", "electricity"],
+    "water_leak": ["water_board", "corporation"],
+    "other": []
+  }
+}

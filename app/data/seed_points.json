@@ -1,0 +1,11 @@
+{
+  "_note": "Synthetic demo coordinates for ward W-12, used only to drive the four worked scenarios from prompt.md 2.7. Not real locations.",
+  "ward": "W-12",
+  "bbox": { "lat_min": 13.0790, "lat_max": 13.0870, "lng_min": 80.2660, "lng_max": 80.2760 },
+  "points": {
+    "P1": { "lat": 13.08300, "lng": 80.27100, "scenario": "S1", "category": "pothole" },
+    "P2": { "lat": 13.08350, "lng": 80.27200, "scenario": "S2", "category": "waterlogging" },
+    "P3": { "lat": 13.08250, "lng": 80.26950, "scenario": "S3", "category": "streetlight" },
+    "P4": { "lat": 13.08400, "lng": 80.27300, "scenario": "S4", "category": "pothole" }
+  }
+}

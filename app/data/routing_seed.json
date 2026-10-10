@@ -1,0 +1,16 @@
+{
+  "_note": "DEMO ASSUMPTIONS. Plain lookup table used by the engine for first assignment and as the baseline in C4.3. Confidence below 0.6 sends the case to DISPUTE.",
+  "threshold": 0.6,
+  "rows": [
+    { "category": "pothole",      "ward": "W-12", "department": "corporation", "confidence": 0.80, "scenario": "S1" },
+    { "category": "waterlogging", "ward": "W-12", "department": "water_board", "confidence": 0.50, "scenario": "S2", "reason": "Demo assumption: past pipe bursts in this ward" },
+    { "category": "streetlight",  "ward": "W-12", "department": "corporation", "confidence": 0.55, "scenario": "S3" },
+    { "category": "drain_block",  "ward": "W-12", "department": "corporation", "confidence": 0.85 },
+    { "category": "garbage",      "ward": "W-12", "department": "corporation", "confidence": 0.90 },
+    { "category": "water_leak",   "ward": "W-12", "department": "water_board", "confidence": 0.75 },
+    { "category": "other",        "ward": "W-12", "department": null,          "confidence": 0.00, "action": "escalate_to_human_triager" }
+  ],
+  "overrides": [
+    { "_note": "S4 boundary point P4 is forced into DISPUTE regardless of category confidence", "point": "P4", "category": "pothole", "department": "corporation", "confidence": 0.55, "scenario": "S4" }
+  ]
+}
