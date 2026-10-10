@@ -11,6 +11,8 @@ Schemas in `schemas/*.schema.json` are generated from `backend/app/models.py`; d
 | GET | `/cases/{id}` | F, C | One case |
 | POST | `/cases/{id}/messages` | Department agents (C) | Post an `agent_message` (accept / reject / transfer / request_info / escalate) |
 | GET | `/cases/{id}/messages` | F | Transcript for the dispute panel |
+| GET | `/cases/{id}/sub_tasks` | F | Parts of the case proposed for other departments |
+| POST | `/cases/{id}/sub_tasks/{sub_id}/messages` | Department agents | The target department answers a proposed sub-task |
 | GET | `/cases/{id}/audit` | F | Audit log |
 | POST | `/cases/{id}/verify` | Field crew view (F) | After-photo plus GPS; returns `verify_result` |
 | POST | `/cases/{id}/confirm` | WhatsApp buttons (F) | Citizen `resolved: true` closes, `false` reopens |
@@ -49,6 +51,22 @@ Schemas in `schemas/*.schema.json` are generated from `backend/app/models.py`; d
 - The "before" photos are the photos from the original report. With none, same-spot is checked by GPS only.
 - `POST /cases/{id}/confirm` (WhatsApp buttons): only valid when `awaiting_citizen`, else 409. `resolved: true` closes the case; `false` reopens it, keeping the owning department, and the crew can verify again.
 - If the vision model is slow (over 15 s) or unavailable, `/verify` returns 200 with `retry: true`, `passed: false`, the case status unchanged and a reason telling the crew to resubmit. Nothing is decided. A GPS failure never needs the model, so it still reports normally. 502 means the after-photo URL could not be fetched.
+
+## Department agent messages (additive fields, v0.3)
+
+An `agent_message` now also carries, all optional: `target_basis` (`matrix_rule:<id>` or `handover_record:<ref>`, why the target),
+`confidence` (0 to 1, computed in code from the evidence), `sub_tasks`, `missing`, `model_backend` (`groq:<model>`, `rules`
+or `fallback:<reason>`) and `sub_task_id`. Evidence kinds now include `presence`, `absence`, `handover_record` and `jurisdiction_rule`
+(plus the earlier registry, photo, boundary, history, note), and an evidence item may carry `source`. Evidence `ref` is stable: a hash
+of the kind and the normalized finding, so citing the same finding twice gives the same ref.
+
+- **Sub-tasks:** an accepting department may propose parts of the complaint for other departments (`sub_tasks` on an `accept`, other
+  departments only). The case keeps one owner. Each sub-task is `proposed` until the target department accepts it
+  (`assigned`); a refusal or an agent failure moves it to `escalated` for a human, a request for information to `needs_info`.
+  Sub-task messages are separate from the case thread: the dispute rules, hop count and rejected-by list never see them.
+- **Shared config:** `contracts/jurisdiction_matrix.json` (who may own each category) and `contracts/routing_seed.json` (the
+  first-contact triage rule: which department's agent is asked first) are read by both services. Neither keeps a copy.
+- **Categories** are Track C's: pothole, waterlogging, drain_block, garbage, streetlight, water_leak, other.
 
 ## Case status flow
 

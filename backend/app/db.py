@@ -39,8 +39,27 @@ CREATE TABLE IF NOT EXISTS messages (
     target_department TEXT,
     reason TEXT NOT NULL,
     evidence TEXT NOT NULL DEFAULT '[]',
+    target_basis TEXT,
+    confidence REAL,
+    missing TEXT NOT NULL DEFAULT '[]',
+    sub_tasks TEXT NOT NULL DEFAULT '[]',
+    model_backend TEXT,
+    sub_task_id TEXT,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sub_tasks (
+    id TEXT PRIMARY KEY,
+    case_id TEXT NOT NULL REFERENCES cases(id),
+    department TEXT NOT NULL,
+    task TEXT NOT NULL,
+    status TEXT NOT NULL,
+    proposed_by TEXT NOT NULL,
+    target_basis TEXT,
+    rationale TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sub_tasks_case ON sub_tasks(case_id);
 CREATE TABLE IF NOT EXISTS audit_log (
     id TEXT PRIMARY KEY,
     case_id TEXT NOT NULL REFERENCES cases(id),
@@ -61,6 +80,17 @@ def connect(path: Path | str = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+# Columns added after the first release; init_db adds them to a database created before they existed.
+MESSAGE_COLUMNS = {
+    "target_basis": "TEXT", "confidence": "REAL", "missing": "TEXT NOT NULL DEFAULT '[]'",
+    "sub_tasks": "TEXT NOT NULL DEFAULT '[]'", "model_backend": "TEXT", "sub_task_id": "TEXT",
+}
+
+
 def init_db(path: Path | str = DB_PATH) -> None:
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        have = {r["name"] for r in conn.execute("PRAGMA table_info(messages)")}
+        for col, decl in MESSAGE_COLUMNS.items():
+            if col not in have:
+                conn.execute(f"ALTER TABLE messages ADD COLUMN {col} {decl}")

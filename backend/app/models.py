@@ -66,6 +66,26 @@ class SLA(BaseModel):
     breached: bool = False
 
 
+class SubTaskStatus(str, Enum):
+    proposed = "proposed"  # an accepting department proposed it; stays here until the target accepts
+    assigned = "assigned"  # the target department accepted
+    needs_info = "needs_info"
+    escalated = "escalated"  # the target refused or could not decide; a human decides
+
+
+class SubTask(BaseModel):
+    id: str
+    case_id: str
+    department: Department
+    task: str
+    status: SubTaskStatus
+    proposed_by: Department
+    target_basis: str | None = None
+    rationale: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class Case(BaseModel):
     id: str
     status: CaseStatus
@@ -80,6 +100,7 @@ class Case(BaseModel):
     hop_count: int = Field(default=0, ge=0, le=2, description="Referrals so far; cap is 2, then escalate")
     rejected_by: list[Department] = Field(default=[], description="Departments that rejected; need new evidence to re-send")
     sla: SLA
+    sub_tasks: list[SubTask] = Field(default=[], description="Parts of the case proposed for other departments")
     created_at: datetime
     updated_at: datetime
 
@@ -110,23 +131,41 @@ class MessageType(str, Enum):
 
 
 class Evidence(BaseModel):
-    kind: str = Field(pattern="^(registry|photo|boundary|history|note)$")
-    ref: str = Field(description="Registry record id, media url, or short note")
+    """One finding cited by an agent. presence/absence/handover_record/jurisdiction_rule come from a department's own
+    registry queries (Track C); `ref` is stable: built from the kind and the normalized finding, so citing the same
+    finding twice yields the same ref."""
+    kind: str = Field(pattern="^(registry|photo|boundary|history|note|presence|absence|handover_record|jurisdiction_rule)$")
+    ref: str = Field(description="Registry record id, media url, short note, or stable finding ref")
     summary: str | None = None
+    source: str | None = Field(default=None, description="Where it came from, e.g. corporation_registry")
+
+
+class SubTaskProposal(BaseModel):
+    """A part of the complaint another department should own, proposed by an accepting department."""
+    department: Department
+    task: str = Field(min_length=3)
+    target_basis: str | None = Field(default=None, description="matrix_rule:<id> or handover_record:<ref> that supports the proposal")
+    rationale: str | None = None
 
 
 class AgentMessage(BaseModel):
     id: str | None = None
     case_id: str | None = None
+    sub_task_id: str | None = Field(default=None, description="Set when the message belongs to a sub-task thread, not the case thread")
     from_agent: Department
     type: MessageType
     target_department: Department | None = None
+    target_basis: str | None = Field(default=None, description="Why the target: matrix_rule:<id> or handover_record:<ref>")
     reason: str = Field(min_length=3)
     evidence: list[Evidence] = []
+    confidence: float | None = Field(default=None, ge=0, le=1, description="Computed in code from the evidence, not chosen by the model")
+    sub_tasks: list[SubTaskProposal] = Field(default=[], description="Only on accept: parts proposed for other departments")
+    missing: list[str] = Field(default=[], description="Only on request_info: what the department needs to know")
+    model_backend: str | None = Field(default=None, description="What decided it: groq:<model>, rules, or fallback:<reason>")
     created_at: datetime | None = None
 
     @model_validator(mode="after")
-    def reject_and_transfer_need_target_and_evidence(self):
+    def check_protocol_shape(self):
         if self.type in (MessageType.reject, MessageType.transfer):
             if self.target_department is None:
                 raise ValueError(f"{self.type.value} requires target_department")
@@ -134,6 +173,12 @@ class AgentMessage(BaseModel):
                 raise ValueError(f"{self.type.value} requires at least one evidence item")
             if self.target_department == self.from_agent:
                 raise ValueError("target_department must differ from from_agent")
+        if self.sub_tasks:
+            if self.type != MessageType.accept:
+                raise ValueError("sub_tasks are only allowed on accept")
+            depts = [s.department for s in self.sub_tasks]
+            if self.from_agent in depts or len(set(depts)) != len(depts):
+                raise ValueError("sub_tasks must name other departments, once each")
         return self
 
 

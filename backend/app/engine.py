@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from .llm import ModelUnavailable
 from .models import (
     SLA, AgentMessage, AuditEntry, Case, CaseCreate, CaseStatus, ConfirmRequest, Department, Location,
-    MediaItem, MessageType, Severity, VerifyRequest, VerifyResult,
+    MediaItem, MessageType, Severity, SubTask, SubTaskStatus, VerifyRequest, VerifyResult,
 )
 
 HOP_CAP = 2
@@ -79,6 +79,7 @@ def _row_to_case(conn: sqlite3.Connection, row: sqlite3.Row) -> Case:
         hop_count=row["hop_count"],
         rejected_by=json.loads(row["rejected_by"]),
         sla=SLA(due_at=row["sla_due_at"], breached=bool(row["sla_breached"])),
+        sub_tasks=list_sub_tasks(conn, row["id"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -162,17 +163,26 @@ def list_cases(
     return [_row_to_case(conn, r) for r in rows]
 
 
-def list_messages(conn: sqlite3.Connection, case_id: str) -> list[AgentMessage]:
+def _row_to_message(r: sqlite3.Row) -> AgentMessage:
+    return AgentMessage(
+        id=r["id"], case_id=r["case_id"], sub_task_id=r["sub_task_id"], from_agent=r["from_agent"], type=r["type"],
+        target_department=r["target_department"], target_basis=r["target_basis"], reason=r["reason"],
+        evidence=json.loads(r["evidence"]), confidence=r["confidence"], sub_tasks=json.loads(r["sub_tasks"]),
+        missing=json.loads(r["missing"]), model_backend=r["model_backend"], created_at=r["created_at"],
+    )
+
+
+def list_messages(conn: sqlite3.Connection, case_id: str, include_sub_tasks: bool = False) -> list[AgentMessage]:
+    """Case-thread messages. The dispute protocol only ever looks at these; sub-task threads are separate."""
     _load_row(conn, case_id)
-    rows = conn.execute("SELECT * FROM messages WHERE case_id = ? ORDER BY created_at, rowid", (case_id,)).fetchall()
-    return [
-        AgentMessage(
-            id=r["id"], case_id=r["case_id"], from_agent=r["from_agent"], type=r["type"],
-            target_department=r["target_department"], reason=r["reason"],
-            evidence=json.loads(r["evidence"]), created_at=r["created_at"],
-        )
-        for r in rows
-    ]
+    where = "case_id = ?" + ("" if include_sub_tasks else " AND sub_task_id IS NULL")
+    rows = conn.execute(f"SELECT * FROM messages WHERE {where} ORDER BY created_at, rowid", (case_id,)).fetchall()
+    return [_row_to_message(r) for r in rows]
+
+
+def list_sub_tasks(conn: sqlite3.Connection, case_id: str) -> list[SubTask]:
+    rows = conn.execute("SELECT * FROM sub_tasks WHERE case_id = ? ORDER BY created_at, rowid", (case_id,)).fetchall()
+    return [SubTask(**dict(r)) for r in rows]
 
 
 def list_audit(conn: sqlite3.Connection, case_id: str) -> list[AuditEntry]:
@@ -183,6 +193,18 @@ def list_audit(conn: sqlite3.Connection, case_id: str) -> list[AuditEntry]:
                    detail=json.loads(r["detail"]), at=r["at"])
         for r in rows
     ]
+
+
+def _insert_message(conn: sqlite3.Connection, m: AgentMessage, now: datetime) -> None:
+    conn.execute(
+        "INSERT INTO messages (id, case_id, from_agent, type, target_department, target_basis, reason, evidence, "
+        "confidence, missing, sub_tasks, model_backend, sub_task_id, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (m.id, m.case_id, m.from_agent.value, m.type.value, m.target_department.value if m.target_department else None,
+         m.target_basis, m.reason, json.dumps([e.model_dump() for e in m.evidence]), m.confidence,
+         json.dumps(m.missing), json.dumps([t.model_dump(mode="json") for t in m.sub_tasks]), m.model_backend,
+         m.sub_task_id, now.isoformat()),
+    )
 
 
 def _current_holder(prior: list[AgentMessage]) -> Department | None:
@@ -244,13 +266,7 @@ def post_message(
         check_transition(case.status, new_status)
 
     saved = msg.model_copy(update={"id": _new_id("msg"), "case_id": case_id, "created_at": now})
-    conn.execute(
-        "INSERT INTO messages (id, case_id, from_agent, type, target_department, reason, evidence, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (saved.id, case_id, msg.from_agent.value, msg.type.value,
-         msg.target_department.value if msg.target_department else None, msg.reason,
-         json.dumps([e.model_dump() for e in msg.evidence]), now.isoformat()),
-    )
+    _insert_message(conn, saved, now)
     conn.execute(
         "UPDATE cases SET status = ?, owner_department = ?, hop_count = ?, rejected_by = ?, updated_at = ? WHERE id = ?",
         (new_status.value, owner.value if owner else None, hop_count, json.dumps([d.value for d in rejected_by]),
@@ -259,6 +275,52 @@ def post_message(
     if new_status != case.status:
         audit_detail["status"] = new_status.value
     _audit(conn, case_id, msg.from_agent.value, audit_action, audit_detail, now)
+    for t in msg.sub_tasks:  # proposals stay `proposed` until the target department accepts
+        sid = _new_id("sub")
+        conn.execute(
+            "INSERT INTO sub_tasks (id, case_id, department, task, status, proposed_by, target_basis, rationale, "
+            "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (sid, case_id, t.department.value, t.task, SubTaskStatus.proposed.value, msg.from_agent.value,
+             t.target_basis, t.rationale, now.isoformat(), now.isoformat()),
+        )
+        _audit(conn, case_id, msg.from_agent.value, "sub_task_proposed",
+               {"sub_task_id": sid, "department": t.department.value, "task": t.task, "target_basis": t.target_basis}, now)
+    conn.commit()
+    return saved
+
+
+_SUB_TASK_OUTCOME = {
+    MessageType.accept: SubTaskStatus.assigned,
+    MessageType.request_info: SubTaskStatus.needs_info,
+    MessageType.reject: SubTaskStatus.escalated,
+    MessageType.transfer: SubTaskStatus.escalated,
+    MessageType.escalate: SubTaskStatus.escalated,
+}
+
+
+def post_sub_task_message(
+    conn: sqlite3.Connection, case_id: str, sub_task_id: str, msg: AgentMessage, now: datetime | None = None
+) -> AgentMessage:
+    """The target department answers a proposed sub-task. Only that department may answer, and only while it is
+    `proposed`. An accept assigns it; anything else leaves it for a human (escalated) or for more information."""
+    now = now or _now()
+    _load_row(conn, case_id)
+    row = conn.execute("SELECT * FROM sub_tasks WHERE id = ? AND case_id = ?", (sub_task_id, case_id)).fetchone()
+    if row is None:
+        raise EngineError(404, f"Sub-task {sub_task_id} not found on case {case_id}")
+    if row["status"] != SubTaskStatus.proposed.value:
+        raise EngineError(409, f"Sub-task is {row['status']}; only a proposed sub-task can be answered")
+    if msg.from_agent.value != row["department"]:
+        raise EngineError(409, f"Sub-task belongs to {row['department']}; only that department may answer")
+    if msg.sub_tasks:
+        raise EngineError(409, "A sub-task answer cannot propose further sub-tasks")
+
+    outcome = _SUB_TASK_OUTCOME[msg.type]
+    saved = msg.model_copy(update={"id": _new_id("msg"), "case_id": case_id, "sub_task_id": sub_task_id, "created_at": now})
+    _insert_message(conn, saved, now)
+    conn.execute("UPDATE sub_tasks SET status = ?, updated_at = ? WHERE id = ?", (outcome.value, now.isoformat(), sub_task_id))
+    _audit(conn, case_id, msg.from_agent.value, f"sub_task_{outcome.value}",
+           {"sub_task_id": sub_task_id, "message_type": msg.type.value, "reason": msg.reason}, now)
     conn.commit()
     return saved
 

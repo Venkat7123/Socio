@@ -284,7 +284,64 @@
           "dispute"
         ],
         "summary": "List Messages",
+        "description": "The dispute transcript. Sub-task messages carry `sub_task_id`; pass include_sub_tasks=false for the case thread only.",
         "operationId": "list_messages_cases__case_id__messages_get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "include_sub_tasks",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Include Sub Tasks"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentMessage"
+                  },
+                  "title": "Response List Messages Cases  Case Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/sub_tasks": {
+      "get": {
+        "tags": [
+          "dispute"
+        ],
+        "summary": "List Sub Tasks",
+        "operationId": "list_sub_tasks_cases__case_id__sub_tasks_get",
         "parameters": [
           {
             "name": "case_id",
@@ -304,9 +361,71 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/AgentMessage"
+                    "$ref": "#/components/schemas/SubTask"
                   },
-                  "title": "Response List Messages Cases  Case Id  Messages Get"
+                  "title": "Response List Sub Tasks Cases  Case Id  Sub Tasks Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/sub_tasks/{sub_task_id}/messages": {
+      "post": {
+        "tags": [
+          "dispute"
+        ],
+        "summary": "Post Sub Task Message",
+        "description": "The target department answers a proposed sub-task: accept assigns it; anything else leaves it for a human.",
+        "operationId": "post_sub_task_message_cases__case_id__sub_tasks__sub_task_id__messages_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "sub_task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sub Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMessage"
                 }
               }
             }
@@ -571,6 +690,18 @@
             ],
             "title": "Case Id"
           },
+          "sub_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Task Id",
+            "description": "Set when the message belongs to a sub-task thread, not the case thread"
+          },
           "from_agent": {
             "$ref": "#/components/schemas/Department"
           },
@@ -587,6 +718,18 @@
               }
             ]
           },
+          "target_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Basis",
+            "description": "Why the target: matrix_rule:<id> or handover_record:<ref>"
+          },
           "reason": {
             "type": "string",
             "minLength": 3,
@@ -599,6 +742,50 @@
             "type": "array",
             "title": "Evidence",
             "default": []
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence",
+            "description": "Computed in code from the evidence, not chosen by the model"
+          },
+          "sub_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/SubTaskProposal"
+            },
+            "type": "array",
+            "title": "Sub Tasks",
+            "description": "Only on accept: parts proposed for other departments",
+            "default": []
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing",
+            "description": "Only on request_info: what the department needs to know",
+            "default": []
+          },
+          "model_backend": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Backend",
+            "description": "What decided it: groq:<model>, rules, or fallback:<reason>"
           },
           "created_at": {
             "anyOf": [
@@ -730,6 +917,15 @@
           },
           "sla": {
             "$ref": "#/components/schemas/SLA"
+          },
+          "sub_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/SubTask"
+            },
+            "type": "array",
+            "title": "Sub Tasks",
+            "description": "Parts of the case proposed for other departments",
+            "default": []
           },
           "created_at": {
             "type": "string",
@@ -878,13 +1074,13 @@
         "properties": {
           "kind": {
             "type": "string",
-            "pattern": "^(registry|photo|boundary|history|note)$",
+            "pattern": "^(registry|photo|boundary|history|note|presence|absence|handover_record|jurisdiction_rule)$",
             "title": "Kind"
           },
           "ref": {
             "type": "string",
             "title": "Ref",
-            "description": "Registry record id, media url, or short note"
+            "description": "Registry record id, media url, short note, or stable finding ref"
           },
           "summary": {
             "anyOf": [
@@ -896,6 +1092,18 @@
               }
             ],
             "title": "Summary"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Where it came from, e.g. corporation_registry"
           }
         },
         "type": "object",
@@ -903,7 +1111,8 @@
           "kind",
           "ref"
         ],
-        "title": "Evidence"
+        "title": "Evidence",
+        "description": "One finding cited by an agent. presence/absence/handover_record/jurisdiction_rule come from a department's own\nregistry queries (Track C); `ref` is stable: built from the kind and the normalized finding, so citing the same\nfinding twice yields the same ref."
       },
       "HTTPValidationError": {
         "properties": {
@@ -1216,6 +1425,127 @@
           "critical"
         ],
         "title": "Severity"
+      },
+      "SubTask": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "department": {
+            "$ref": "#/components/schemas/Department"
+          },
+          "task": {
+            "type": "string",
+            "title": "Task"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubTaskStatus"
+          },
+          "proposed_by": {
+            "$ref": "#/components/schemas/Department"
+          },
+          "target_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Basis"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "department",
+          "task",
+          "status",
+          "proposed_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SubTask"
+      },
+      "SubTaskProposal": {
+        "properties": {
+          "department": {
+            "$ref": "#/components/schemas/Department"
+          },
+          "task": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Task"
+          },
+          "target_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Basis",
+            "description": "matrix_rule:<id> or handover_record:<ref> that supports the proposal"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "department",
+          "task"
+        ],
+        "title": "SubTaskProposal",
+        "description": "A part of the complaint another department should own, proposed by an accepting department."
+      },
+      "SubTaskStatus": {
+        "type": "string",
+        "enum": [
+          "proposed",
+          "assigned",
+          "needs_info",
+          "escalated"
+        ],
+        "title": "SubTaskStatus"
       },
       "ValidationError": {
         "properties": {

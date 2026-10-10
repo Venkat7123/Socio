@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.main import app  # noqa: E402
-from app.models import AgentMessage, AuditEntry, Case, CaseCreate, ConfirmRequest, IntakeRequest, IntakeResponse, NeedInfo, VerifyRequest, VerifyResult  # noqa: E402
+from app.models import AgentMessage, AuditEntry, Case, CaseCreate, ConfirmRequest, IntakeRequest, IntakeResponse, NeedInfo, SubTask, VerifyRequest, VerifyResult  # noqa: E402
 
 OUT = ROOT / "contracts"
 SCHEMAS = {
@@ -19,6 +19,7 @@ SCHEMAS = {
     "intake_request": IntakeRequest,
     "intake_response": IntakeResponse,
     "agent_message": AgentMessage,
+    "sub_task": SubTask,
     "audit_entry": AuditEntry,
     "verify_request": VerifyRequest,
     "verify_result": VerifyResult,

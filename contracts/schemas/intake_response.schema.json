@@ -70,6 +70,15 @@
         "sla": {
           "$ref": "#/$defs/SLA"
         },
+        "sub_tasks": {
+          "default": [],
+          "description": "Parts of the case proposed for other departments",
+          "items": {
+            "$ref": "#/$defs/SubTask"
+          },
+          "title": "Sub Tasks",
+          "type": "array"
+        },
         "created_at": {
           "format": "date-time",
           "title": "Created At",
@@ -276,6 +285,87 @@
         "critical"
       ],
       "title": "Severity",
+      "type": "string"
+    },
+    "SubTask": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "department": {
+          "$ref": "#/$defs/Department"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SubTaskStatus"
+        },
+        "proposed_by": {
+          "$ref": "#/$defs/Department"
+        },
+        "target_basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Basis"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "department",
+        "task",
+        "status",
+        "proposed_by",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "SubTask",
+      "type": "object"
+    },
+    "SubTaskStatus": {
+      "enum": [
+        "proposed",
+        "assigned",
+        "needs_info",
+        "escalated"
+      ],
+      "title": "SubTaskStatus",
       "type": "string"
     }
   },

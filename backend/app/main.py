@@ -11,7 +11,7 @@ from .verification import VerificationAgent
 from .models import (
     AgentMessage, AuditEntry, Case, CaseCreate, CaseStatus, Category, ConfirmRequest,
     Department, Hotspot, HotspotResponse, IntakeRequest, IntakeResponse,
-    NeedInfo, VerifyRequest, VerifyResult,
+    NeedInfo, SubTask, VerifyRequest, VerifyResult,
 )
 
 
@@ -96,8 +96,21 @@ def post_message(case_id: str, body: AgentMessage, conn=Depends(get_conn)):
 
 
 @app.get("/cases/{case_id}/messages", response_model=list[AgentMessage], tags=["dispute"])
-def list_messages(case_id: str, conn=Depends(get_conn)):
-    return engine.list_messages(conn, case_id)
+def list_messages(case_id: str, include_sub_tasks: bool = True, conn=Depends(get_conn)):
+    """The dispute transcript. Sub-task messages carry `sub_task_id`; pass include_sub_tasks=false for the case thread only."""
+    return engine.list_messages(conn, case_id, include_sub_tasks=include_sub_tasks)
+
+
+@app.get("/cases/{case_id}/sub_tasks", response_model=list[SubTask], tags=["dispute"])
+def list_sub_tasks(case_id: str, conn=Depends(get_conn)):
+    engine.get_case(conn, case_id)  # 404 for an unknown case
+    return engine.list_sub_tasks(conn, case_id)
+
+
+@app.post("/cases/{case_id}/sub_tasks/{sub_task_id}/messages", response_model=AgentMessage, status_code=201, tags=["dispute"])
+def post_sub_task_message(case_id: str, sub_task_id: str, body: AgentMessage, conn=Depends(get_conn)):
+    """The target department answers a proposed sub-task: accept assigns it; anything else leaves it for a human."""
+    return engine.post_sub_task_message(conn, case_id, sub_task_id, body)
 
 
 @app.get("/cases/{case_id}/audit", response_model=list[AuditEntry], tags=["cases"])

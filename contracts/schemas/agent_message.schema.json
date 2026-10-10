@@ -11,14 +11,15 @@
       "type": "string"
     },
     "Evidence": {
+      "description": "One finding cited by an agent. presence/absence/handover_record/jurisdiction_rule come from a department's own\nregistry queries (Track C); `ref` is stable: built from the kind and the normalized finding, so citing the same\nfinding twice yields the same ref.",
       "properties": {
         "kind": {
-          "pattern": "^(registry|photo|boundary|history|note)$",
+          "pattern": "^(registry|photo|boundary|history|note|presence|absence|handover_record|jurisdiction_rule)$",
           "title": "Kind",
           "type": "string"
         },
         "ref": {
-          "description": "Registry record id, media url, or short note",
+          "description": "Registry record id, media url, short note, or stable finding ref",
           "title": "Ref",
           "type": "string"
         },
@@ -33,6 +34,19 @@
           ],
           "default": null,
           "title": "Summary"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where it came from, e.g. corporation_registry",
+          "title": "Source"
         }
       },
       "required": [
@@ -52,6 +66,50 @@
       ],
       "title": "MessageType",
       "type": "string"
+    },
+    "SubTaskProposal": {
+      "description": "A part of the complaint another department should own, proposed by an accepting department.",
+      "properties": {
+        "department": {
+          "$ref": "#/$defs/Department"
+        },
+        "task": {
+          "minLength": 3,
+          "title": "Task",
+          "type": "string"
+        },
+        "target_basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "matrix_rule:<id> or handover_record:<ref> that supports the proposal",
+          "title": "Target Basis"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rationale"
+        }
+      },
+      "required": [
+        "department",
+        "task"
+      ],
+      "title": "SubTaskProposal",
+      "type": "object"
     }
   },
   "properties": {
@@ -79,6 +137,19 @@
       "default": null,
       "title": "Case Id"
     },
+    "sub_task_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set when the message belongs to a sub-task thread, not the case thread",
+      "title": "Sub Task Id"
+    },
     "from_agent": {
       "$ref": "#/$defs/Department"
     },
@@ -96,6 +167,19 @@
       ],
       "default": null
     },
+    "target_basis": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Why the target: matrix_rule:<id> or handover_record:<ref>",
+      "title": "Target Basis"
+    },
     "reason": {
       "minLength": 3,
       "title": "Reason",
@@ -108,6 +192,52 @@
       },
       "title": "Evidence",
       "type": "array"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Computed in code from the evidence, not chosen by the model",
+      "title": "Confidence"
+    },
+    "sub_tasks": {
+      "default": [],
+      "description": "Only on accept: parts proposed for other departments",
+      "items": {
+        "$ref": "#/$defs/SubTaskProposal"
+      },
+      "title": "Sub Tasks",
+      "type": "array"
+    },
+    "missing": {
+      "default": [],
+      "description": "Only on request_info: what the department needs to know",
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing",
+      "type": "array"
+    },
+    "model_backend": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "What decided it: groq:<model>, rules, or fallback:<reason>",
+      "title": "Model Backend"
     },
     "created_at": {
       "anyOf": [
