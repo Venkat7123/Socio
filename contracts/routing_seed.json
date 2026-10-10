@@ -1,0 +1,16 @@
+{
+  "_note": "FIRST-CONTACT TRIAGE RULE. Decides which department's agent is asked first for a new case, per category and ward. It is a starting guess, never an assignment: ownership only comes from a department's own accept backed by presence evidence. Confidence below the threshold marks the first contact as uncertain. DEMO ASSUMPTIONS. Single source of truth for the backend and the Track C service (env ROUTING_SEED_PATH); also the baseline for the metrics comparison.",
+  "threshold": 0.6,
+  "rows": [
+    { "category": "pothole",      "ward": "W-12", "department": "corporation", "confidence": 0.80, "scenario": "S1" },
+    { "category": "waterlogging", "ward": "W-12", "department": "water_board", "confidence": 0.50, "scenario": "S2", "reason": "Demo assumption: past pipe bursts in this ward" },
+    { "category": "streetlight",  "ward": "W-12", "department": "corporation", "confidence": 0.55, "scenario": "S3" },
+    { "category": "drain_block",  "ward": "W-12", "department": "corporation", "confidence": 0.85 },
+    { "category": "garbage",      "ward": "W-12", "department": "corporation", "confidence": 0.90 },
+    { "category": "water_leak",   "ward": "W-12", "department": "water_board", "confidence": 0.75 },
+    { "category": "other",        "ward": "W-12", "department": null,          "confidence": 0.00, "action": "escalate_to_human_triager" }
+  ],
+  "overrides": [
+    { "_note": "S4 boundary point P4 is forced to a low-confidence first contact regardless of category confidence. The backend has no point labels, so it does not apply overrides; the department is the same either way.", "point": "P4", "category": "pothole", "department": "corporation", "confidence": 0.55, "scenario": "S4" }
+  ]
+}
