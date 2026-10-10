@@ -68,6 +68,50 @@ CREATE TABLE IF NOT EXISTS audit_log (
     detail TEXT NOT NULL DEFAULT '{}',
     at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS wa_messages (
+    provider_message_id TEXT PRIMARY KEY,
+    phone TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    received_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS wa_conversations (
+    phone TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'idle',
+    draft TEXT NOT NULL DEFAULT '{}',
+    case_id TEXT,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS wa_case_links (
+    phone TEXT NOT NULL,
+    case_id TEXT NOT NULL REFERENCES cases(id),
+    role TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (phone, case_id)
+);
+CREATE TABLE IF NOT EXISTS wa_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    body TEXT NOT NULL,
+    media TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL,
+    error TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS wa_notified (
+    phone TEXT NOT NULL,
+    case_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    PRIMARY KEY (phone, case_id, key)
+);
+CREATE TABLE IF NOT EXISTS route_claims (
+    case_id TEXT PRIMARY KEY,
+    claimed_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_messages_case ON messages(case_id);
 CREATE INDEX IF NOT EXISTS idx_audit_case ON audit_log(case_id);
 """

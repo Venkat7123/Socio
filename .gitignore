@@ -9,3 +9,4 @@ __pycache__/
 backend/.env
 testset/*/report.md
 !testset/*/report_baseline_v1.md
+backend/media/
