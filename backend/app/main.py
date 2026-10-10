@@ -5,13 +5,15 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 
 from . import db, engine
+from .department_agents import call_department_agent
+from .dispute_driver import route_case
 from .intake import IntakeAgent
 from .llm import RETRY_MESSAGE, MediaFetchError, ModelUnavailable
 from .verification import VerificationAgent
 from .models import (
     AgentMessage, AuditEntry, Case, CaseCreate, CaseStatus, Category, ConfirmRequest,
     Department, Hotspot, HotspotResponse, IntakeRequest, IntakeResponse,
-    NeedInfo, SubTask, VerifyRequest, VerifyResult,
+    NeedInfo, RouteResponse, SubTask, VerifyRequest, VerifyResult,
 )
 
 
@@ -93,6 +95,17 @@ def get_case(case_id: str, conn=Depends(get_conn)):
 def post_message(case_id: str, body: AgentMessage, conn=Depends(get_conn)):
     """Department agent posts accept / reject / transfer / request_info / escalate. Protocol violations return 409."""
     return engine.post_message(conn, case_id, body)
+
+
+def get_agent_caller():
+    return call_department_agent
+
+
+@app.post("/cases/{case_id}/route", response_model=RouteResponse, tags=["dispute"])
+def route(case_id: str, conn=Depends(get_conn), call=Depends(get_agent_caller)):
+    """Run a new case through the department agents. The engine applies every rule to each message; if it blocks one,
+    the blocked department escalates the case with the transcript. Agent failures become escalations, never a crash."""
+    return route_case(conn, case_id, call)
 
 
 @app.get("/cases/{case_id}/messages", response_model=list[AgentMessage], tags=["dispute"])

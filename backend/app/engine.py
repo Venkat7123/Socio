@@ -195,6 +195,24 @@ def list_audit(conn: sqlite3.Connection, case_id: str) -> list[AuditEntry]:
     ]
 
 
+def audit_event(conn: sqlite3.Connection, case_id: str, actor: str, action: str, detail: dict, now: datetime | None = None) -> None:
+    """Write an audit entry for something the routing layer did (not a state change)."""
+    _audit(conn, case_id, actor, action, detail, now or _now())
+    conn.commit()
+
+
+def escalate_case(conn: sqlite3.Connection, case_id: str, reason: str, actor: str = "engine", now: datetime | None = None) -> Case:
+    """Send a case to a human when no department can own it (e.g. a category with no candidates). Uses the normal
+    state machine: only states that may escalate can."""
+    now = now or _now()
+    case = _row_to_case(conn, _load_row(conn, case_id))
+    check_transition(case.status, S.escalated)
+    conn.execute("UPDATE cases SET status = ?, updated_at = ? WHERE id = ?", (S.escalated.value, now.isoformat(), case_id))
+    _audit(conn, case_id, actor, "escalated", {"reason": reason, "from_status": case.status.value}, now)
+    conn.commit()
+    return _row_to_case(conn, _load_row(conn, case_id))
+
+
 def _insert_message(conn: sqlite3.Connection, m: AgentMessage, now: datetime) -> None:
     conn.execute(
         "INSERT INTO messages (id, case_id, from_agent, type, target_department, target_basis, reason, evidence, "

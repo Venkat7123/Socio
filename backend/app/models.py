@@ -242,3 +242,20 @@ class IntakeResponse(BaseModel):
     result: str = Field(pattern="^(case_created|need_info)$")
     case: Case | None = None
     need_info: NeedInfo | None = None
+
+
+class RouteStep(BaseModel):
+    """One department decision during routing."""
+    department: Department
+    sub_task_id: str | None = None
+    type: MessageType
+    target_department: Department | None = None
+    model_backend: str | None = None
+    confidence: float | None = None
+    note: str | None = Field(default=None, description="Set when the engine blocked the message or the driver escalated")
+
+
+class RouteResponse(BaseModel):
+    case: Case
+    first_contact: Department | None = Field(description="Whose agent was asked first, from the first-contact triage rule")
+    steps: list[RouteStep]

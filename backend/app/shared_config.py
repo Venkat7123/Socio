@@ -37,6 +37,11 @@ def candidates_for(category: str) -> list[str]:
     return list(_matrix()["candidates_by_category"].get(category, []))
 
 
+def rule(rule_id: str) -> dict | None:
+    """A matrix rule by id (M-POT-2 ...), or None."""
+    return next((r for r in _matrix()["rules"] if r["id"] == rule_id), None)
+
+
 def first_contact(category: str, ward: str = DEFAULT_WARD) -> tuple[str | None, float]:
     """(department, confidence) of the department whose agent is asked first, or (None, 0) for human triage."""
     for row in _seed()["rows"]:
