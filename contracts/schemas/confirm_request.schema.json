@@ -1,0 +1,26 @@
+{
+  "properties": {
+    "resolved": {
+      "description": "true closes the case, false reopens it",
+      "title": "Resolved",
+      "type": "boolean"
+    },
+    "comment": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Comment"
+    }
+  },
+  "required": [
+    "resolved"
+  ],
+  "title": "ConfirmRequest",
+  "type": "object"
+}

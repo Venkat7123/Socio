@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "actor": {
+      "description": "intake | engine | <department> | field_crew | citizen",
+      "title": "Actor",
+      "type": "string"
+    },
+    "action": {
+      "title": "Action",
+      "type": "string"
+    },
+    "detail": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Detail",
+      "type": "object"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "case_id",
+    "actor",
+    "action",
+    "at"
+  ],
+  "title": "AuditEntry",
+  "type": "object"
+}

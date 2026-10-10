@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "CaseStatus": {
+      "enum": [
+        "need_info",
+        "new",
+        "in_dispute",
+        "assigned",
+        "in_progress",
+        "pending_verification",
+        "awaiting_citizen",
+        "closed",
+        "reopened",
+        "escalated"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "status": {
+      "$ref": "#/$defs/CaseStatus",
+      "default": "need_info"
+    },
+    "missing": {
+      "description": "e.g. ['location', 'photo']",
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing",
+      "type": "array"
+    },
+    "question": {
+      "description": "Follow-up question to send the citizen",
+      "title": "Question",
+      "type": "string"
+    }
+  },
+  "required": [
+    "missing",
+    "question"
+  ],
+  "title": "NeedInfo",
+  "type": "object"
+}

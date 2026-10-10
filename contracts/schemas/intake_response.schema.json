@@ -1,0 +1,314 @@
+{
+  "$defs": {
+    "Case": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CaseStatus"
+        },
+        "category": {
+          "$ref": "#/$defs/Category"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/Location"
+        },
+        "media": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MediaItem"
+          },
+          "title": "Media",
+          "type": "array"
+        },
+        "channel": {
+          "$ref": "#/$defs/Channel",
+          "default": "whatsapp"
+        },
+        "citizen_ref": {
+          "description": "Opaque citizen id (hashed WhatsApp number)",
+          "title": "Citizen Ref",
+          "type": "string"
+        },
+        "owner_department": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Department"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hop_count": {
+          "default": 0,
+          "description": "Referrals so far; cap is 2, then escalate",
+          "maximum": 2,
+          "minimum": 0,
+          "title": "Hop Count",
+          "type": "integer"
+        },
+        "rejected_by": {
+          "default": [],
+          "description": "Departments that rejected; need new evidence to re-send",
+          "items": {
+            "$ref": "#/$defs/Department"
+          },
+          "title": "Rejected By",
+          "type": "array"
+        },
+        "sla": {
+          "$ref": "#/$defs/SLA"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "category",
+        "severity",
+        "description",
+        "location",
+        "citizen_ref",
+        "sla",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "Case",
+      "type": "object"
+    },
+    "CaseStatus": {
+      "enum": [
+        "need_info",
+        "new",
+        "in_dispute",
+        "assigned",
+        "in_progress",
+        "pending_verification",
+        "awaiting_citizen",
+        "closed",
+        "reopened",
+        "escalated"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    },
+    "Category": {
+      "enum": [
+        "pothole",
+        "water_leak",
+        "streetlight",
+        "garbage",
+        "drainage",
+        "other"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Channel": {
+      "enum": [
+        "whatsapp",
+        "app"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "Department": {
+      "enum": [
+        "corporation",
+        "water_board",
+        "electricity",
+        "highways"
+      ],
+      "title": "Department",
+      "type": "string"
+    },
+    "Location": {
+      "properties": {
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lng": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lng",
+          "type": "number"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "ward": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ward"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "MediaItem": {
+      "properties": {
+        "kind": {
+          "pattern": "^(photo|voice|video)$",
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "transcript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech-to-text for voice notes",
+          "title": "Transcript"
+        }
+      },
+      "required": [
+        "kind",
+        "url"
+      ],
+      "title": "MediaItem",
+      "type": "object"
+    },
+    "NeedInfo": {
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/CaseStatus",
+          "default": "need_info"
+        },
+        "missing": {
+          "description": "e.g. ['location', 'photo']",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "question": {
+          "description": "Follow-up question to send the citizen",
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "missing",
+        "question"
+      ],
+      "title": "NeedInfo",
+      "type": "object"
+    },
+    "SLA": {
+      "properties": {
+        "due_at": {
+          "format": "date-time",
+          "title": "Due At",
+          "type": "string"
+        },
+        "breached": {
+          "default": false,
+          "title": "Breached",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "due_at"
+      ],
+      "title": "SLA",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "result": {
+      "pattern": "^(case_created|need_info)$",
+      "title": "Result",
+      "type": "string"
+    },
+    "case": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Case"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "need_info": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NeedInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "result"
+  ],
+  "title": "IntakeResponse",
+  "type": "object"
+}

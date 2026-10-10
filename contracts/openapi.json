@@ -1,0 +1,1333 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Civic Case Engine API",
+    "description": "Track B core API. Cases, intake, dispute messages, audit, verify and confirm are real; analytics is still a stub. See /contracts.",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/intake": {
+      "post": {
+        "tags": [
+          "intake"
+        ],
+        "summary": "Intake",
+        "description": "Turn a citizen report into a case, or return need_info with a follow-up question.\nStateless: resend all text, photos and the location pin collected so far on every call.",
+        "operationId": "intake_intake_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases": {
+      "post": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Create Case",
+        "description": "Create a case from the intake agent's output. SLA deadline is set from severity.",
+        "operationId": "create_case_cases_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "List Cases",
+        "operationId": "list_cases_cases_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CaseStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "ward",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ward"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Department"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Department"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Case"
+                  },
+                  "title": "Response List Cases Cases Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Case",
+        "operationId": "get_case_cases__case_id__get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/messages": {
+      "post": {
+        "tags": [
+          "dispute"
+        ],
+        "summary": "Post Message",
+        "description": "Department agent posts accept / reject / transfer / request_info / escalate. Protocol violations return 409.",
+        "operationId": "post_message_cases__case_id__messages_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMessage"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMessage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "dispute"
+        ],
+        "summary": "List Messages",
+        "operationId": "list_messages_cases__case_id__messages_get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentMessage"
+                  },
+                  "title": "Response List Messages Cases  Case Id  Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/audit": {
+      "get": {
+        "tags": [
+          "cases"
+        ],
+        "summary": "Get Audit",
+        "operationId": "get_audit_cases__case_id__audit_get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  },
+                  "title": "Response Get Audit Cases  Case Id  Audit Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/verify": {
+      "post": {
+        "tags": [
+          "proof"
+        ],
+        "summary": "Verify Case",
+        "description": "Field crew submits an after-photo plus GPS. Passes only if GPS is within the radius AND the vision check says\nsame spot and resolved. A pass moves the case to awaiting_citizen; a fail leaves it in_progress.",
+        "operationId": "verify_case_cases__case_id__verify_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cases/{case_id}/confirm": {
+      "post": {
+        "tags": [
+          "proof"
+        ],
+        "summary": "Confirm Case",
+        "description": "Citizen confirms (closes) or reopens a verified case.",
+        "operationId": "confirm_case_cases__case_id__confirm_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Case"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/hotspots": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Hotspots",
+        "operationId": "hotspots_analytics_hotspots_get",
+        "parameters": [
+          {
+            "name": "ward",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ward"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HotspotResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentMessage": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "from_agent": {
+            "$ref": "#/components/schemas/Department"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MessageType"
+          },
+          "target_department": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Department"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Reason"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "type": "array",
+            "title": "Evidence",
+            "default": []
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_agent",
+          "type",
+          "reason"
+        ],
+        "title": "AgentMessage"
+      },
+      "AuditEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor",
+            "description": "intake | engine | <department> | field_crew | citizen"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Detail",
+            "default": {}
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "case_id",
+          "actor",
+          "action",
+          "at"
+        ],
+        "title": "AuditEntry"
+      },
+      "Case": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/MediaItem"
+            },
+            "type": "array",
+            "title": "Media",
+            "default": []
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel",
+            "default": "whatsapp"
+          },
+          "citizen_ref": {
+            "type": "string",
+            "title": "Citizen Ref",
+            "description": "Opaque citizen id (hashed WhatsApp number)"
+          },
+          "owner_department": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Department"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hop_count": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Hop Count",
+            "description": "Referrals so far; cap is 2, then escalate",
+            "default": 0
+          },
+          "rejected_by": {
+            "items": {
+              "$ref": "#/components/schemas/Department"
+            },
+            "type": "array",
+            "title": "Rejected By",
+            "description": "Departments that rejected; need new evidence to re-send",
+            "default": []
+          },
+          "sla": {
+            "$ref": "#/components/schemas/SLA"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "category",
+          "severity",
+          "description",
+          "location",
+          "citizen_ref",
+          "sla",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Case"
+      },
+      "CaseCreate": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Description"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "media": {
+            "items": {
+              "$ref": "#/components/schemas/MediaItem"
+            },
+            "type": "array",
+            "title": "Media",
+            "default": []
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel",
+            "default": "whatsapp"
+          },
+          "citizen_ref": {
+            "type": "string",
+            "title": "Citizen Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "severity",
+          "description",
+          "location",
+          "citizen_ref"
+        ],
+        "title": "CaseCreate",
+        "description": "Output of the intake agent. If info is missing the agent returns need_info instead of calling this."
+      },
+      "CaseStatus": {
+        "type": "string",
+        "enum": [
+          "need_info",
+          "new",
+          "in_dispute",
+          "assigned",
+          "in_progress",
+          "pending_verification",
+          "awaiting_citizen",
+          "closed",
+          "reopened",
+          "escalated"
+        ],
+        "title": "CaseStatus"
+      },
+      "Category": {
+        "type": "string",
+        "enum": [
+          "pothole",
+          "water_leak",
+          "streetlight",
+          "garbage",
+          "drainage",
+          "other"
+        ],
+        "title": "Category"
+      },
+      "Channel": {
+        "type": "string",
+        "enum": [
+          "whatsapp",
+          "app"
+        ],
+        "title": "Channel"
+      },
+      "ConfirmRequest": {
+        "properties": {
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved",
+            "description": "true closes the case, false reopens it"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resolved"
+        ],
+        "title": "ConfirmRequest"
+      },
+      "Department": {
+        "type": "string",
+        "enum": [
+          "corporation",
+          "water_board",
+          "electricity",
+          "highways"
+        ],
+        "title": "Department"
+      },
+      "Evidence": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^(registry|photo|boundary|history|note)$",
+            "title": "Kind"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "Registry record id, media url, or short note"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "Evidence"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Hotspot": {
+        "properties": {
+          "ward": {
+            "type": "string",
+            "title": "Ward"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "case_count": {
+            "type": "integer",
+            "title": "Case Count"
+          },
+          "dispute_count": {
+            "type": "integer",
+            "title": "Dispute Count",
+            "description": "Cases that were referred between departments"
+          },
+          "reopen_count": {
+            "type": "integer",
+            "title": "Reopen Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ward",
+          "category",
+          "case_count",
+          "dispute_count",
+          "reopen_count"
+        ],
+        "title": "Hotspot"
+      },
+      "HotspotResponse": {
+        "properties": {
+          "hotspots": {
+            "items": {
+              "$ref": "#/components/schemas/Hotspot"
+            },
+            "type": "array",
+            "title": "Hotspots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hotspots"
+        ],
+        "title": "HotspotResponse"
+      },
+      "IntakeRequest": {
+        "properties": {
+          "citizen_ref": {
+            "type": "string",
+            "title": "Citizen Ref"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/Channel",
+            "default": "whatsapp"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "voice_transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Transcript",
+            "description": "Optional. If omitted, intake sends the voice note audio to the model, which transcribes it"
+          },
+          "voice_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Url",
+            "description": "Voice note URL (OGG/Opus from WhatsApp is fine); must be fetchable without auth"
+          },
+          "photo_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Photo Urls",
+            "description": "Publicly fetchable image URLs hosted by the caller",
+            "default": []
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Location"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "WhatsApp location pin; intake never guesses coordinates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "citizen_ref"
+        ],
+        "title": "IntakeRequest",
+        "description": "Everything collected so far for one report. WhatsApp is stateless here: the caller (F) resends the\naccumulated text, photos and location pin on every call until intake returns a case."
+      },
+      "IntakeResponse": {
+        "properties": {
+          "result": {
+            "type": "string",
+            "pattern": "^(case_created|need_info)$",
+            "title": "Result"
+          },
+          "case": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Case"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "need_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NeedInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "result"
+        ],
+        "title": "IntakeResponse"
+      },
+      "Location": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "ward": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ward"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lng"
+        ],
+        "title": "Location"
+      },
+      "MediaItem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^(photo|voice|video)$",
+            "title": "Kind"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcript",
+            "description": "Speech-to-text for voice notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "url"
+        ],
+        "title": "MediaItem"
+      },
+      "MessageType": {
+        "type": "string",
+        "enum": [
+          "accept",
+          "reject",
+          "transfer",
+          "request_info",
+          "escalate"
+        ],
+        "title": "MessageType"
+      },
+      "NeedInfo": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus",
+            "default": "need_info"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing",
+            "description": "e.g. ['location', 'photo']"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question",
+            "description": "Follow-up question to send the citizen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "missing",
+          "question"
+        ],
+        "title": "NeedInfo"
+      },
+      "SLA": {
+        "properties": {
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "breached": {
+            "type": "boolean",
+            "title": "Breached",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "due_at"
+        ],
+        "title": "SLA"
+      },
+      "Severity": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ],
+        "title": "Severity"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerifyRequest": {
+        "properties": {
+          "after_photo_url": {
+            "type": "string",
+            "title": "After Photo Url"
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lng": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng"
+          }
+        },
+        "type": "object",
+        "required": [
+          "after_photo_url",
+          "lat",
+          "lng"
+        ],
+        "title": "VerifyRequest"
+      },
+      "VerifyResult": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "title": "Case Id"
+          },
+          "gps_ok": {
+            "type": "boolean",
+            "title": "Gps Ok"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "vision_same_spot": {
+            "type": "boolean",
+            "title": "Vision Same Spot"
+          },
+          "vision_resolved": {
+            "type": "boolean",
+            "title": "Vision Resolved"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaseStatus"
+          },
+          "retry": {
+            "type": "boolean",
+            "title": "Retry",
+            "description": "true when the vision model was unavailable or too slow; nothing was decided, resubmit",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "case_id",
+          "gps_ok",
+          "distance_m",
+          "vision_same_spot",
+          "vision_resolved",
+          "reason",
+          "passed",
+          "status"
+        ],
+        "title": "VerifyResult"
+      }
+    }
+  }
+}

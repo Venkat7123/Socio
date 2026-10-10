@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "CaseStatus": {
+      "enum": [
+        "need_info",
+        "new",
+        "in_dispute",
+        "assigned",
+        "in_progress",
+        "pending_verification",
+        "awaiting_citizen",
+        "closed",
+        "reopened",
+        "escalated"
+      ],
+      "title": "CaseStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "gps_ok": {
+      "title": "Gps Ok",
+      "type": "boolean"
+    },
+    "distance_m": {
+      "title": "Distance M",
+      "type": "number"
+    },
+    "vision_same_spot": {
+      "title": "Vision Same Spot",
+      "type": "boolean"
+    },
+    "vision_resolved": {
+      "title": "Vision Resolved",
+      "type": "boolean"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "status": {
+      "$ref": "#/$defs/CaseStatus"
+    },
+    "retry": {
+      "default": false,
+      "description": "true when the vision model was unavailable or too slow; nothing was decided, resubmit",
+      "title": "Retry",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "case_id",
+    "gps_ok",
+    "distance_m",
+    "vision_same_spot",
+    "vision_resolved",
+    "reason",
+    "passed",
+    "status"
+  ],
+  "title": "VerifyResult",
+  "type": "object"
+}

@@ -1,0 +1,11 @@
+.env
+*.db
+__pycache__/
+.pytest_cache/
+
+*.jsonl
+!testset/synthetic/results_baseline_v1.jsonl
+.venv/
+backend/.env
+testset/*/report.md
+!testset/*/report_baseline_v1.md

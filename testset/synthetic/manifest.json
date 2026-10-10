@@ -1,0 +1,224 @@
+{
+  "set": "synthetic",
+  "note": "Synthetic images and English text-to-speech. Smoke test only; not evidence of real-world accuracy.",
+  "verify": [
+    {
+      "id": "p01",
+      "before": "photos/p01_before.jpg",
+      "after": "photos/p01_after.jpg",
+      "label": "good_fix",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p02",
+      "before": "photos/p02_before.jpg",
+      "after": "photos/p02_after.jpg",
+      "label": "good_fix",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p03",
+      "before": "photos/p03_before.jpg",
+      "after": "photos/p03_after.jpg",
+      "label": "good_fix",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    },
+    {
+      "id": "p04",
+      "before": "photos/p04_before.jpg",
+      "after": "photos/p04_after.jpg",
+      "label": "good_fix",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p05",
+      "before": "photos/p05_before.jpg",
+      "after": "photos/p05_after.jpg",
+      "label": "good_fix",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p06",
+      "before": "photos/p06_before.jpg",
+      "after": "photos/p06_after.jpg",
+      "label": "good_fix",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    },
+    {
+      "id": "p07",
+      "before": "photos/p07_before.jpg",
+      "after": "photos/p07_after.jpg",
+      "label": "still_broken",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p08",
+      "before": "photos/p08_before.jpg",
+      "after": "photos/p08_after.jpg",
+      "label": "still_broken",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p09",
+      "before": "photos/p09_before.jpg",
+      "after": "photos/p09_after.jpg",
+      "label": "still_broken",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    },
+    {
+      "id": "p10",
+      "before": "photos/p10_before.jpg",
+      "after": "photos/p10_after.jpg",
+      "label": "still_broken",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p11",
+      "before": "photos/p11_before.jpg",
+      "after": "photos/p11_after.jpg",
+      "label": "still_broken",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p12",
+      "before": "photos/p12_before.jpg",
+      "after": "photos/p12_after.jpg",
+      "label": "still_broken",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    },
+    {
+      "id": "p13",
+      "before": "photos/p13_before.jpg",
+      "after": "photos/p13_after.jpg",
+      "label": "wrong_place",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p14",
+      "before": "photos/p14_before.jpg",
+      "after": "photos/p14_after.jpg",
+      "label": "wrong_place",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p15",
+      "before": "photos/p15_before.jpg",
+      "after": "photos/p15_after.jpg",
+      "label": "wrong_place",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    },
+    {
+      "id": "p16",
+      "before": "photos/p16_before.jpg",
+      "after": "photos/p16_after.jpg",
+      "label": "wrong_place",
+      "category": "pothole",
+      "description": "pothole reported on the road"
+    },
+    {
+      "id": "p17",
+      "before": "photos/p17_before.jpg",
+      "after": "photos/p17_after.jpg",
+      "label": "wrong_place",
+      "category": "garbage",
+      "description": "garbage reported on the road"
+    },
+    {
+      "id": "p18",
+      "before": "photos/p18_before.jpg",
+      "after": "photos/p18_after.jpg",
+      "label": "wrong_place",
+      "category": "water_leak",
+      "description": "water leak reported on the road"
+    }
+  ],
+  "voice": [
+    {
+      "id": "v01",
+      "audio": "voice/v01.wav",
+      "script": "There is a huge pothole on the main road near the market. Two bikes slipped here this morning.",
+      "expected_result": "case_created",
+      "expected_category": "pothole",
+      "voice": "Microsoft David Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v02",
+      "audio": "voice/v02.wav",
+      "script": "The street light outside my house has not been working for three days and the lane is completely dark.",
+      "expected_result": "case_created",
+      "expected_category": "streetlight",
+      "voice": "Microsoft Zira Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v03",
+      "audio": "voice/v03.wav",
+      "script": "Garbage has not been collected in our lane for over a week. It is piling up and smells terrible.",
+      "expected_result": "case_created",
+      "expected_category": "garbage",
+      "voice": "Microsoft David Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v04",
+      "audio": "voice/v04.wav",
+      "script": "Water is leaking from a broken pipe near the school gate and the road is flooded.",
+      "expected_result": "case_created",
+      "expected_category": "water_leak",
+      "voice": "Microsoft Zira Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v05",
+      "audio": "voice/v05.wav",
+      "script": "The drain near the bus stop is blocked and dirty water is overflowing onto the road.",
+      "expected_result": "case_created",
+      "expected_category": "drainage",
+      "voice": "Microsoft David Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v06",
+      "audio": "voice/v06.wav",
+      "script": "Hello. Please send someone to fix the road in front of the temple. There is a deep hole and cars are swerving.",
+      "expected_result": "case_created",
+      "expected_category": "pothole",
+      "voice": "Microsoft Zira Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v07",
+      "audio": "voice/v07.wav",
+      "script": "Hello, there is a problem near my house. Please come and see.",
+      "expected_result": "need_info",
+      "expected_category": null,
+      "voice": "Microsoft David Desktop",
+      "language": "en"
+    },
+    {
+      "id": "v08",
+      "audio": "voice/v08.wav",
+      "script": "Um, it is not good here. Somebody should do something about it.",
+      "expected_result": "need_info",
+      "expected_category": null,
+      "voice": "Microsoft Zira Desktop",
+      "language": "en"
+    }
+  ]
+}

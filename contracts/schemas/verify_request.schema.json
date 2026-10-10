@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "after_photo_url": {
+      "title": "After Photo Url",
+      "type": "string"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "lng": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lng",
+      "type": "number"
+    }
+  },
+  "required": [
+    "after_photo_url",
+    "lat",
+    "lng"
+  ],
+  "title": "VerifyRequest",
+  "type": "object"
+}

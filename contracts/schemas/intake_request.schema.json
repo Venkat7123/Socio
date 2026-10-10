@@ -1,0 +1,134 @@
+{
+  "$defs": {
+    "Channel": {
+      "enum": [
+        "whatsapp",
+        "app"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "Location": {
+      "properties": {
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lng": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lng",
+          "type": "number"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "ward": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ward"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "title": "Location",
+      "type": "object"
+    }
+  },
+  "description": "Everything collected so far for one report. WhatsApp is stateless here: the caller (F) resends the\naccumulated text, photos and location pin on every call until intake returns a case.",
+  "properties": {
+    "citizen_ref": {
+      "title": "Citizen Ref",
+      "type": "string"
+    },
+    "channel": {
+      "$ref": "#/$defs/Channel",
+      "default": "whatsapp"
+    },
+    "text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Text"
+    },
+    "voice_transcript": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional. If omitted, intake sends the voice note audio to the model, which transcribes it",
+      "title": "Voice Transcript"
+    },
+    "voice_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Voice note URL (OGG/Opus from WhatsApp is fine); must be fetchable without auth",
+      "title": "Voice Url"
+    },
+    "photo_urls": {
+      "default": [],
+      "description": "Publicly fetchable image URLs hosted by the caller",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 3,
+      "title": "Photo Urls",
+      "type": "array"
+    },
+    "location": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Location"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "WhatsApp location pin; intake never guesses coordinates"
+    }
+  },
+  "required": [
+    "citizen_ref"
+  ],
+  "title": "IntakeRequest",
+  "type": "object"
+}

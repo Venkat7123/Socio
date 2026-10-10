@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "Department": {
+      "enum": [
+        "corporation",
+        "water_board",
+        "electricity",
+        "highways"
+      ],
+      "title": "Department",
+      "type": "string"
+    },
+    "Evidence": {
+      "properties": {
+        "kind": {
+          "pattern": "^(registry|photo|boundary|history|note)$",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Registry record id, media url, or short note",
+          "title": "Ref",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "MessageType": {
+      "enum": [
+        "accept",
+        "reject",
+        "transfer",
+        "request_info",
+        "escalate"
+      ],
+      "title": "MessageType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "case_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Id"
+    },
+    "from_agent": {
+      "$ref": "#/$defs/Department"
+    },
+    "type": {
+      "$ref": "#/$defs/MessageType"
+    },
+    "target_department": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Department"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "reason": {
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+    },
+    "evidence": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "created_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Created At"
+    }
+  },
+  "required": [
+    "from_agent",
+    "type",
+    "reason"
+  ],
+  "title": "AgentMessage",
+  "type": "object"
+}

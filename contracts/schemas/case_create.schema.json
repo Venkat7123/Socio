@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "Category": {
+      "enum": [
+        "pothole",
+        "water_leak",
+        "streetlight",
+        "garbage",
+        "drainage",
+        "other"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Channel": {
+      "enum": [
+        "whatsapp",
+        "app"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "Location": {
+      "properties": {
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lng": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lng",
+          "type": "number"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "ward": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ward"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "MediaItem": {
+      "properties": {
+        "kind": {
+          "pattern": "^(photo|voice|video)$",
+          "title": "Kind",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "transcript": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech-to-text for voice notes",
+          "title": "Transcript"
+        }
+      },
+      "required": [
+        "kind",
+        "url"
+      ],
+      "title": "MediaItem",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "description": "Output of the intake agent. If info is missing the agent returns need_info instead of calling this.",
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/Category"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "description": {
+      "minLength": 3,
+      "title": "Description",
+      "type": "string"
+    },
+    "location": {
+      "$ref": "#/$defs/Location"
+    },
+    "media": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/MediaItem"
+      },
+      "title": "Media",
+      "type": "array"
+    },
+    "channel": {
+      "$ref": "#/$defs/Channel",
+      "default": "whatsapp"
+    },
+    "citizen_ref": {
+      "title": "Citizen Ref",
+      "type": "string"
+    }
+  },
+  "required": [
+    "category",
+    "severity",
+    "description",
+    "location",
+    "citizen_ref"
+  ],
+  "title": "CaseCreate",
+  "type": "object"
+}
