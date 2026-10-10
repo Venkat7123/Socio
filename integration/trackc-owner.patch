@@ -1,0 +1,558 @@
+diff --git a/.env.example b/.env.example
+index f02cf98..5d66e45 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,14 +1,18 @@
+-# Copy this file to .env and fill in your key to use live Gemini decisions.
+-# If GEMINI_API_KEY is left blank, the agent pipeline automatically falls back
+-# to a deterministic rule-based decision stub (see app/llm.py) so the demo
+-# keeps working offline. Every agent message records which backend decided it
+-# in message.model_backend ("gemini" or "fallback_rules").
+-GEMINI_API_KEY=
+-GEMINI_MODEL=gemini-flash-latest
++# Copy this file to .env.
++# LLM_BACKEND=groq calls Groq and fails loudly (the message becomes type "error") if the call cannot finish within
++# LLM_TIMEOUT_S. LLM_BACKEND=rules uses the deterministic stub; it is never chosen automatically.
++LLM_BACKEND=groq
++GROQ_API_KEY=
++GROQ_MODEL=openai/gpt-oss-120b
++LLM_TIMEOUT_S=15
+ 
+ # Path to the sqlite db file. Deleted + reseeded by `python seed_db.py --reset`.
+ DB_PATH=./loci.db
+ 
+-# Engine tuning (see ARCHITECTURE.md for why these defaults were picked).
++# Shared config: point every service at the SAME files. Leave unset to use the copies in app/data.
++# MATRIX_PATH=../contracts/jurisdiction_matrix.json
++# ROUTING_SEED_PATH=../contracts/routing_seed.json
++
++# Engine tuning (only used by this repo's own engine, not when another service owns the case).
+ HOP_CAP=3
+ ROUTING_THRESHOLD=0.6
+diff --git a/app/agents.py b/app/agents.py
+index 667c5de..51062f0 100644
+--- a/app/agents.py
++++ b/app/agents.py
+@@ -76,34 +76,45 @@ def _assemble(case: dict, department: str, thread_id: str, validated: dict, back
+     }
+ 
+ 
+-def evaluate(case: dict, department: str, thread_id: str = "root") -> dict:
+-    """Runs one full evaluate step for `department` on `case` and returns the
+-    resulting AgentMessage dict. Always persists the message to the transcript,
+-    including on `error`, so a failed hop is still auditable."""
++_ERROR_STUB = {"type": "error", "evidence": [], "target": None, "target_basis": None,
++               "sub_tasks": [], "missing": [], "confidence": None, "rationale": ""}
++
++
++def evaluate(case: dict, department: str, thread_id: str = "root", *, transcript: list[dict] | None = None,
++             persist: bool = True) -> dict:
++    """Runs one full evaluate step for `department` on `case` and returns the resulting AgentMessage dict.
++
++    `transcript` lets a caller that owns the case (another service's engine) supply the prior messages; leave it
++    None to read them from this service's own messages table. `persist=False` skips writing the message, so a
++    stateless caller does not leave a transcript behind. Failures become `error` messages, never silent guesses."""
+     facts = facts_mod.build_facts_sheet(case, department)
+-    transcript = get_transcript(case["id"], thread_id)
++    if transcript is None:
++        transcript = get_transcript(case["id"], thread_id)
+ 
+-    decision, backend = llm.decide(department, case, facts, transcript)
++    def finish(message: dict) -> dict:
++        if persist:
++            _persist_message(message)
++        return message
++
++    try:
++        decision, backend = llm.decide(department, case, facts, transcript)
++    except llm.LLMUnavailable as exc:
++        return finish(_assemble(case, department, thread_id, _ERROR_STUB, "unavailable", f"llm_unavailable: {exc}"))
+ 
+     last_error: str | None = None
+     for attempt in range(MAX_RETRIES + 1):
+         try:
+             validated = validation.validate_and_assemble(department, case, facts, decision)
+-            message = _assemble(case, department, thread_id, validated, backend, None)
+-            _persist_message(message)
+-            return message
++            return finish(_assemble(case, department, thread_id, validated, backend, None))
+         except validation.ValidationError as exc:
+             last_error = str(exc)
+             if attempt < MAX_RETRIES:
+-                decision, backend = llm.decide(department, case, facts, transcript, retry_feedback=last_error)
++                try:
++                    decision, backend = llm.decide(department, case, facts, transcript, retry_feedback=last_error)
++                except llm.LLMUnavailable as llm_exc:
++                    last_error = f"llm_unavailable on retry: {llm_exc} (after: {last_error})"
++                    break
+ 
+     # 2.6 step 5: a model/validation failure must become `error`, never
+     # `need_info` -- `need_info` would wrongly make the engine ask the citizen.
+-    message = _assemble(
+-        case, department, thread_id,
+-        {"type": "error", "evidence": [], "target": None, "target_basis": None,
+-         "sub_tasks": [], "missing": [], "confidence": None, "rationale": ""},
+-        backend, last_error,
+-    )
+-    _persist_message(message)
+-    return message
++    return finish(_assemble(case, department, thread_id, _ERROR_STUB, backend, last_error))
+diff --git a/app/config.py b/app/config.py
+index 9e05013..f7ec87f 100644
+--- a/app/config.py
++++ b/app/config.py
+@@ -10,13 +10,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
+ load_dotenv(BASE_DIR / ".env")
+ 
+ DATA_DIR = Path(__file__).resolve().parent / "data"
+-MATRIX_PATH = DATA_DIR / "jurisdiction_matrix.json"
+-ROUTING_SEED_PATH = DATA_DIR / "routing_seed.json"
++# The jurisdiction matrix and the first-contact routing seed are shared with the other services. Point every
++# service at ONE copy (MATRIX_PATH / ROUTING_SEED_PATH) instead of keeping a second file in this repo.
++MATRIX_PATH = Path(os.getenv("MATRIX_PATH", DATA_DIR / "jurisdiction_matrix.json"))
++ROUTING_SEED_PATH = Path(os.getenv("ROUTING_SEED_PATH", DATA_DIR / "routing_seed.json"))
+ 
+ DB_PATH = os.getenv("DB_PATH", str(BASE_DIR / "loci.db"))
+ 
+-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
++# LLM. "groq" calls Groq and FAILS LOUDLY (the message becomes type "error") if it cannot answer in time.
++# "rules" is the deterministic stub and must be chosen explicitly; it is never a silent fallback.
++LLM_BACKEND = os.getenv("LLM_BACKEND", "groq").strip().lower()
++GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
++GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
++LLM_TIMEOUT_S = float(os.getenv("LLM_TIMEOUT_S", "15"))
+ 
+ # Not specified in the provided spec fragment (sections 1-2.3 were not
+ # available) -- chosen as a reasonable demo default. Override via .env.
+diff --git a/app/llm.py b/app/llm.py
+index dbd3e5c..1859a70 100644
+--- a/app/llm.py
++++ b/app/llm.py
+@@ -1,12 +1,12 @@
+ """The model step (prompt.md 2.6 step 3): "The model gets the case, the prior
+ messages and the facts sheet, and must return exactly this structure."
+ 
+-Two backends:
+-  - gemini: real call to Gemini via google-genai, JSON-mode output.
+-  - fallback_rules: deterministic stub over the same facts sheet, used when
+-    GEMINI_API_KEY is unset or the live call fails/times out, so a hackathon
+-    demo never goes dark mid-pitch. Every AgentMessage records which backend
+-    actually decided it (message.model_backend) -- nothing is hidden.
++Two backends, chosen explicitly with LLM_BACKEND:
++  - groq:  a real call through complete_json(), with a hard timeout (LLM_TIMEOUT_S). If it cannot answer in time
++           it raises LLMUnavailable; app/agents.py turns that into an `error` message. There is NO silent
++           fallback to the rule stub: a failed model call is visible, never disguised as a decision.
++  - rules: deterministic stub over the same facts sheet, for offline tests. Messages are labelled
++           model_backend="rules" so nobody mistakes them for an LLM decision.
+ 
+ In both cases this module ONLY chooses `type`/`cite_refs`/`target`/
+ `target_basis`/`sub_tasks`/`missing`/`rationale`. It never writes finding
+@@ -16,12 +16,23 @@ from __future__ import annotations
+ 
+ import json
+ import logging
++from concurrent.futures import ThreadPoolExecutor
++from concurrent.futures import TimeoutError as FutureTimeout
+ 
+-from app.config import GEMINI_API_KEY, GEMINI_MODEL
++from pydantic import ValidationError as PydanticValidationError
++
++from app.config import GROQ_API_KEY, GROQ_MODEL, LLM_BACKEND, LLM_TIMEOUT_S
+ from app.schemas import ModelDecision
+ 
+ logger = logging.getLogger("loci.llm")
+ 
++
++class LLMUnavailable(Exception):
++    """The model could not give a usable answer in time (timeout, rate limit, API error, unparseable output)."""
++
++
++_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="llm")
++
+ SYSTEM_PROMPT = """You are a department agent inside a civic-complaint routing engine.
+ You represent exactly ONE department's registry. You must speak only for that
+ department's own data -- you may say "I found no X" but never assert what
+@@ -86,15 +97,37 @@ Rules:
+ """
+ 
+ 
+-def _client():
+-    if not GEMINI_API_KEY:
+-        return None
++def complete_json(system: str, user: str, temperature: float = 0.1) -> tuple[dict, str]:
++    """Provider-agnostic JSON completion: returns (parsed JSON, backend label) or raises LLMUnavailable.
++    Never blocks longer than LLM_TIMEOUT_S and never falls back silently."""
++    if not GROQ_API_KEY:
++        raise LLMUnavailable("GROQ_API_KEY is not set")
++
++    def call() -> str:
++        import groq
++
++        client = groq.Groq(api_key=GROQ_API_KEY, timeout=LLM_TIMEOUT_S, max_retries=0)
++        extra = {"reasoning_effort": "low"} if GROQ_MODEL.startswith("openai/gpt-oss") else {}
++        resp = client.chat.completions.create(
++            model=GROQ_MODEL, temperature=temperature, max_completion_tokens=1500,
++            response_format={"type": "json_object"},
++            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
++            **extra,
++        )
++        return resp.choices[0].message.content or ""
++
++    future = _pool.submit(call)
+     try:
+-        from google import genai
+-    except ImportError:
+-        logger.warning("google-genai not installed; using fallback_rules backend")
+-        return None
+-    return genai.Client(api_key=GEMINI_API_KEY)
++        text = future.result(timeout=LLM_TIMEOUT_S + 1)
++    except FutureTimeout as exc:
++        future.cancel()
++        raise LLMUnavailable(f"model call exceeded {LLM_TIMEOUT_S:.0f} s") from exc
++    except Exception as exc:  # noqa: BLE001 -- every provider failure is reported, none is swallowed
++        raise LLMUnavailable(f"model call failed: {type(exc).__name__}: {str(exc)[:160]}") from exc
++    try:
++        return json.loads(text), f"groq:{GROQ_MODEL}"
++    except (TypeError, ValueError) as exc:
++        raise LLMUnavailable("model returned unparseable JSON") from exc
+ 
+ 
+ def _build_user_prompt(
+@@ -125,29 +158,16 @@ def _build_user_prompt(
+ def decide(
+     department: str, case: dict, facts: dict, transcript: list[dict], retry_feedback: str | None = None
+ ) -> tuple[dict, str]:
+-    client = _client()
+-    if client is None:
+-        return mock_decide(department, case, facts, transcript), "fallback_rules"
++    """Returns (decision, backend). Raises LLMUnavailable when the model cannot answer; it never substitutes rules."""
++    if LLM_BACKEND == "rules":
++        return mock_decide(department, case, facts, transcript), "rules"
+ 
++    prompt = _build_user_prompt(department, case, facts, transcript, retry_feedback)
++    raw, backend = complete_json(SYSTEM_PROMPT, prompt)
+     try:
+-        from google.genai import types
+-
+-        prompt = _build_user_prompt(department, case, facts, transcript, retry_feedback)
+-        resp = client.models.generate_content(
+-            model=GEMINI_MODEL,
+-            contents=prompt,
+-            config=types.GenerateContentConfig(
+-                system_instruction=SYSTEM_PROMPT,
+-                response_mime_type="application/json",
+-                temperature=0.1,
+-            ),
+-        )
+-        raw = json.loads(resp.text)
+-        decision = ModelDecision(**raw).model_dump()
+-        return decision, "gemini"
+-    except Exception as exc:  # noqa: BLE001 -- any failure here must degrade, never crash the case
+-        logger.warning("Gemini call failed, falling back to deterministic rules: %s", exc)
+-        return mock_decide(department, case, facts, transcript), "fallback_rules"
++        return ModelDecision(**raw).model_dump(), backend
++    except (PydanticValidationError, TypeError) as exc:
++        raise LLMUnavailable(f"model returned an invalid decision: {str(exc)[:160]}") from exc
+ 
+ 
+ def mock_decide(department: str, case: dict, facts: dict, transcript: list[dict]) -> dict:
+diff --git a/app/routers/agents.py b/app/routers/agents.py
+index b6d0d84..19fa197 100644
+--- a/app/routers/agents.py
++++ b/app/routers/agents.py
+@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
+ 
+ from app import agents, engine
+ from app.config import DEPARTMENTS
+-from app.schemas import AgentMessage, EvaluateRequest
++from app.schemas import AgentMessage, EvaluateRequest, InlineEvaluateRequest
+ 
+ router = APIRouter(prefix="/agents", tags=["agents"])
+ 
+@@ -24,3 +24,15 @@ def evaluate(department: str, payload: EvaluateRequest):
+         raise HTTPException(status_code=404, detail=str(exc)) from exc
+     message = agents.evaluate(case, department, payload.thread_id)
+     return message
++
++
++@router.post("/{department}/evaluate-inline", response_model=AgentMessage)
++def evaluate_inline(department: str, payload: InlineEvaluateRequest):
++    """Stateless evaluate for a caller that owns the case: the case and the prior transcript come in the request,
++    nothing is stored in this service's cases or messages tables (registry queries are still logged, because
++    the evidence refs the agent cites are validated against that log)."""
++    if department not in DEPARTMENTS:
++        raise HTTPException(status_code=404, detail=f"unknown department '{department}'. Valid: {DEPARTMENTS}")
++    return agents.evaluate(
++        payload.case.model_dump(), department, payload.thread_id, transcript=payload.transcript, persist=False
++    )
+diff --git a/app/schemas.py b/app/schemas.py
+index 84567b3..0ec0991 100644
+--- a/app/schemas.py
++++ b/app/schemas.py
+@@ -131,3 +131,20 @@ class CaseOut(BaseModel):
+ class EvaluateRequest(BaseModel):
+     case_id: str
+     thread_id: str = "root"
++
++
++class InlineCase(BaseModel):
++    """A case owned by another service. Only what the department's registry queries need."""
++    id: str
++    category: str
++    ward: str = "W-12"
++    lat: float
++    lng: float
++    accuracy_m: Optional[float] = None
++    description: str = ""
++
++
++class InlineEvaluateRequest(BaseModel):
++    case: InlineCase
++    transcript: list[dict] = Field(default_factory=list)
++    thread_id: str = "root"
+diff --git a/app/validation.py b/app/validation.py
+index dc6437d..c5933cf 100644
+--- a/app/validation.py
++++ b/app/validation.py
+@@ -86,6 +86,10 @@ def _accept_confidence(evidence_objs: list[dict], logged: dict) -> float:
+     return 0.50
+ 
+ 
++ABSENCE_ONLY_KINDS = {"absence", "jurisdiction_rule", "history"}
++ABSENCE_ONLY_CAP = 0.70
++
++
+ def _reject_confidence(evidence_objs: list[dict], logged: dict) -> float:
+     kinds = {e["kind"] for e in evidence_objs}
+     if "handover_record" in kinds:
+@@ -94,9 +98,12 @@ def _reject_confidence(evidence_objs: list[dict], logged: dict) -> float:
+         e["kind"] == "jurisdiction_rule" and logged[e["ref"]]["result"].get("in_jurisdiction") is False
+         for e in evidence_objs
+     )
+-    if jurisdiction_false:
+-        return 0.75
+-    return 0.60  # "absence only" row, capped at 0.70 by construction
++    confidence = 0.75 if jurisdiction_false else 0.60
++    # A reject backed only by absence (including a "not my jurisdiction" finding) proves nothing positive, so it
++    # is capped. This is the same set app/engine.py::_is_absence_only uses, so the two stay consistent.
++    if kinds <= ABSENCE_ONLY_KINDS:
++        confidence = min(confidence, ABSENCE_ONLY_CAP)
++    return confidence
+ 
+ 
+ def _validate_target_basis(target: str, target_basis: str | None, category: str, logged: dict) -> None:
+@@ -221,6 +228,8 @@ def validate_and_assemble(department: str, case: dict, facts: dict, decision: di
+         if target not in candidates:
+             raise ValidationError(f"target '{target}' is not a matrix candidate for category '{category}'")
+         evidence_objs, logged = _evidence_from_refs(decision.get("cite_refs", []), case["id"], department)
++        if not evidence_objs:
++            raise ValidationError("reject requires at least one cited evidence ref")
+         _validate_target_basis(target, target_basis, category, logged)
+         return {
+             "type": "reject",
+diff --git a/contents/jurisdiction_matrix.json b/contents/jurisdiction_matrix.json
+deleted file mode 100644
+index 0732129..0000000
+--- a/contents/jurisdiction_matrix.json
++++ /dev/null
+@@ -1,34 +0,0 @@
+-{
+-  "_note": "DEMO ASSUMPTIONS. Shared rules only, no asset data. Verify against the target city before presenting as fact.",
+-  "version": "1.0.0",
+-  "departments": ["corporation", "water_board", "electricity", "highways"],
+-  "rules": [
+-    { "id": "M-POT-1", "category": "pothole", "condition": "on_municipal_road", "candidates": ["corporation"] },
+-    { "id": "M-POT-2", "category": "pothole", "condition": "road_not_in_municipal_register", "candidates": ["highways"] },
+-
+-    { "id": "M-WL-1", "category": "waterlogging", "condition": "storm_drain", "candidates": ["corporation"] },
+-    { "id": "M-WL-2", "category": "waterlogging", "condition": "pipeline_burst", "candidates": ["water_board"] },
+-    { "id": "M-WL-3", "category": "waterlogging", "condition": "road_surface_damage_road_not_in_municipal_register", "candidates": ["highways"] },
+-
+-    { "id": "M-DR-1", "category": "drain_block", "condition": "storm_drain", "candidates": ["corporation"] },
+-
+-    { "id": "M-GB-1", "category": "garbage", "condition": "any", "candidates": ["corporation"] },
+-
+-    { "id": "M-SL-1", "category": "streetlight", "condition": "lamp_fault", "candidates": ["corporation"] },
+-    { "id": "M-SL-2", "category": "streetlight", "condition": "pole_or_supply_fault", "candidates": ["electricity"] },
+-
+-    { "id": "M-WT-1", "category": "water_leak", "condition": "pipeline", "candidates": ["water_board"] },
+-    { "id": "M-WT-2", "category": "water_leak", "condition": "no_pipeline_likely_drain_overflow", "candidates": ["corporation"] },
+-
+-    { "id": "M-OT-1", "category": "other", "condition": "any", "candidates": [], "action": "escalate_to_human_triager" }
+-  ],
+-  "candidates_by_category": {
+-    "pothole": ["corporation", "highways"],
+-    "waterlogging": ["corporation", "water_board", "highways"],
+-    "drain_block": ["corporation"],
+-    "garbage": ["corporation"],
+-    "streetlight": ["corporation", "electricity"],
+-    "water_leak": ["water_board", "corporation"],
+-    "other": []
+-  }
+-}
+diff --git a/contents/routing_seed.json b/contents/routing_seed.json
+deleted file mode 100644
+index c006b01..0000000
+--- a/contents/routing_seed.json
++++ /dev/null
+@@ -1,16 +0,0 @@
+-{
+-  "_note": "DEMO ASSUMPTIONS. Plain lookup table used by the engine for first assignment and as the baseline in C4.3. Confidence below 0.6 sends the case to DISPUTE.",
+-  "threshold": 0.6,
+-  "rows": [
+-    { "category": "pothole",      "ward": "W-12", "department": "corporation", "confidence": 0.80, "scenario": "S1" },
+-    { "category": "waterlogging", "ward": "W-12", "department": "water_board", "confidence": 0.50, "scenario": "S2", "reason": "Demo assumption: past pipe bursts in this ward" },
+-    { "category": "streetlight",  "ward": "W-12", "department": "corporation", "confidence": 0.55, "scenario": "S3" },
+-    { "category": "drain_block",  "ward": "W-12", "department": "corporation", "confidence": 0.85 },
+-    { "category": "garbage",      "ward": "W-12", "department": "corporation", "confidence": 0.90 },
+-    { "category": "water_leak",   "ward": "W-12", "department": "water_board", "confidence": 0.75 },
+-    { "category": "other",        "ward": "W-12", "department": null,          "confidence": 0.00, "action": "escalate_to_human_triager" }
+-  ],
+-  "overrides": [
+-    { "_note": "S4 boundary point P4 is forced into DISPUTE regardless of category confidence", "point": "P4", "category": "pothole", "department": "corporation", "confidence": 0.55, "scenario": "S4" }
+-  ]
+-}
+diff --git a/requirements.txt b/requirements.txt
+index b130813..f753cc5 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -2,6 +2,6 @@ fastapi==0.115.6
+ uvicorn[standard]==0.34.0
+ pydantic==2.10.4
+ python-dotenv==1.0.1
+-google-genai==1.2.0
++groq>=1.0,<2
+ pytest==8.3.4
+ httpx==0.28.1
+diff --git a/tests/conftest.py b/tests/conftest.py
+index 7473e37..42fe885 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -6,7 +6,7 @@ from pathlib import Path
+ 
+ TEST_DB = Path(__file__).resolve().parent.parent / "loci_test.db"
+ os.environ["DB_PATH"] = str(TEST_DB)
+-os.environ["GEMINI_API_KEY"] = ""
++os.environ["LLM_BACKEND"] = "rules"
+ 
+ import pytest  # noqa: E402
+ 
+diff --git a/tests/test_integration_patch.py b/tests/test_integration_patch.py
+new file mode 100644
+index 0000000..8900732
+--- /dev/null
++++ b/tests/test_integration_patch.py
+@@ -0,0 +1,112 @@
++"""Tests for the changes that let another service (the backend engine) own the case and call these agents.
++
++Runs on the rules backend (see conftest.py); the model call itself is faked where it matters.
++"""
++import importlib
++import time
++
++import pytest
++from fastapi.testclient import TestClient
++
++from app import agents, config, llm, validation
++from app.db import session
++from app.main import app
++
++client = TestClient(app)
++P1 = {"id": "X-1", "category": "pothole", "ward": "W-12", "lat": 13.08300, "lng": 80.27100}
++P4 = {"id": "X-4", "category": "pothole", "ward": "W-12", "lat": 13.08400, "lng": 80.27300}
++
++
++def count(table: str) -> int:
++    with session() as conn:
++        return conn.execute(f"SELECT COUNT(*) AS c FROM {table}").fetchone()["c"]
++
++
++def test_inline_evaluate_is_stateless():
++    r = client.post("/agents/corporation/evaluate-inline", json={"case": P1})
++    assert r.status_code == 200
++    m = r.json()
++    assert m["type"] == "accept" and m["from"] == "corporation_agent" and m["model_backend"] == "rules"
++    assert any(e["kind"] == "presence" for e in m["evidence"])
++    assert count("cases") == 0 and count("messages") == 0  # nothing about the case is stored here
++    assert client.post("/agents/nobody/evaluate-inline", json={"case": P1}).status_code == 404
++
++
++def test_inline_evaluate_uses_the_transcript_it_is_given():
++    seen = {}
++    real = llm.decide
++    llm.decide = lambda dept, case, facts, transcript, retry_feedback=None: (seen.update(t=transcript) or real(dept, case, facts, transcript))
++    try:
++        t = [{"type": "reject", "from": "water_board_agent", "evidence": []}]
++        client.post("/agents/corporation/evaluate-inline", json={"case": P1, "transcript": t})
++    finally:
++        llm.decide = real
++    assert seen["t"] == t
++
++
++def test_reject_without_evidence_is_refused(monkeypatch):
++    bad = {"type": "reject", "cite_refs": [], "target": "highways", "target_basis": "matrix_rule:M-POT-2",
++           "sub_tasks": [], "missing": [], "rationale": "no idea"}
++    monkeypatch.setattr(llm, "decide", lambda *a, **k: (dict(bad), "groq:test"))
++    m = agents.evaluate(P4, "corporation", persist=False)
++    assert m["type"] == "error" and "at least one cited evidence ref" in m["error_reason"]
++    assert m["model_backend"] == "groq:test"
++
++
++def test_absence_only_reject_confidence_is_capped_at_070():
++    absence = {"kind": "absence", "ref": "a"}
++    jr = {"kind": "jurisdiction_rule", "ref": "j"}
++    logged = {"a": {"result": {}}, "j": {"result": {"in_jurisdiction": False}}}
++    assert validation._reject_confidence([absence, jr], logged) == 0.70  # was 0.75
++    assert validation._reject_confidence([absence], logged) == 0.60
++    assert validation._reject_confidence([absence, {"kind": "handover_record", "ref": "h"}], logged) == 0.85
++
++
++def test_llm_failure_is_an_error_message_not_a_silent_rule_decision(monkeypatch):
++    monkeypatch.setattr(llm, "LLM_BACKEND", "groq")
++    monkeypatch.setattr(llm, "GROQ_API_KEY", "")
++    m = agents.evaluate(P1, "corporation", persist=False)
++    assert m["type"] == "error" and m["model_backend"] == "unavailable"
++    assert m["error_reason"].startswith("llm_unavailable") and "GROQ_API_KEY" in m["error_reason"]
++    assert count("messages") == 0
++
++
++def test_slow_model_times_out(monkeypatch):
++    import groq
++
++    class Slow:
++        def __init__(self, **kw):
++            self.chat = type("C", (), {"completions": type("X", (), {"create": staticmethod(lambda **k: time.sleep(5))})()})()
++
++    monkeypatch.setattr(groq, "Groq", Slow)
++    monkeypatch.setattr(llm, "GROQ_API_KEY", "k")
++    monkeypatch.setattr(llm, "LLM_TIMEOUT_S", 0.3)
++    t = time.time()
++    with pytest.raises(llm.LLMUnavailable) as e:
++        llm.complete_json("s", "u")
++    assert time.time() - t < 2 and "exceeded" in str(e.value)
++
++
++def test_unparseable_model_output_is_unavailable(monkeypatch):
++    import groq
++
++    msg = type("M", (), {"content": "not json"})()
++    resp = type("R", (), {"choices": [type("Ch", (), {"message": msg})()]})()
++    fake = type("G", (), {"__init__": lambda self, **kw: None,
++                          "chat": type("C", (), {"completions": type("X", (), {"create": staticmethod(lambda **k: resp)})()})()})
++    monkeypatch.setattr(groq, "Groq", fake)
++    monkeypatch.setattr(llm, "GROQ_API_KEY", "k")
++    with pytest.raises(llm.LLMUnavailable):
++        llm.complete_json("s", "u")
++
++
++def test_matrix_and_routing_seed_paths_come_from_the_environment(monkeypatch, tmp_path):
++    monkeypatch.setenv("MATRIX_PATH", str(tmp_path / "m.json"))
++    monkeypatch.setenv("ROUTING_SEED_PATH", str(tmp_path / "r.json"))
++    importlib.reload(config)
++    try:
++        assert config.MATRIX_PATH == tmp_path / "m.json" and config.ROUTING_SEED_PATH == tmp_path / "r.json"
++    finally:
++        monkeypatch.undo()
++        importlib.reload(config)
++    assert config.MATRIX_PATH.name == "jurisdiction_matrix.json"
